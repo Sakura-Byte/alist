@@ -21,6 +21,7 @@ import (
 	"github.com/alist-org/alist/v3/internal/sign"
 	"github.com/alist-org/alist/v3/pkg/utils"
 	"github.com/alist-org/alist/v3/server/common"
+	log "github.com/sirupsen/logrus"
 )
 
 type Handler struct {
@@ -188,7 +189,7 @@ func (h *Handler) handleOptions(w http.ResponseWriter, r *http.Request) (status 
 		return 403, err
 	}
 	allow := "OPTIONS, LOCK, PUT, MKCOL"
-	if fi, err := fs.Get(ctx, reqPath); err == nil {
+	if fi, err := fs.Get(ctx, reqPath, &fs.GetArgs{}); err == nil {
 		if fi.IsDir() {
 			allow = "OPTIONS, LOCK, DELETE, PROPPATCH, COPY, MOVE, UNLOCK, PROPFIND"
 		} else {
@@ -215,7 +216,7 @@ func (h *Handler) handleGetHeadPost(w http.ResponseWriter, r *http.Request) (sta
 	if err != nil {
 		return 403, err
 	}
-	fi, err := fs.Get(ctx, reqPath)
+	fi, err := fs.Get(ctx, reqPath, &fs.GetArgs{})
 	if err != nil {
 		return http.StatusNotFound, err
 	}
@@ -228,7 +229,7 @@ func (h *Handler) handleGetHeadPost(w http.ResponseWriter, r *http.Request) (sta
 	}
 	w.Header().Set("ETag", etag)
 	// Let ServeContent determine the Content-Type header.
-	storage, _ := fs.GetStorage(reqPath)
+	storage, _ := fs.GetStorage(reqPath, &fs.GetStoragesArgs{})
 	downProxyUrl := storage.GetStorage().DownProxyUrl
 	if storage.GetStorage().WebdavNative() || (storage.GetStorage().WebdavProxy() && downProxyUrl == "") {
 		link, _, err := fs.Link(ctx, reqPath, model.LinkArgs{Header: r.Header})
@@ -237,6 +238,7 @@ func (h *Handler) handleGetHeadPost(w http.ResponseWriter, r *http.Request) (sta
 		}
 		err = common.Proxy(w, r, link, fi)
 		if err != nil {
+			log.Errorf("webdav proxy error: %+v", err)
 			return http.StatusInternalServerError, err
 		}
 	} else if storage.GetStorage().WebdavProxy() && downProxyUrl != "" {
@@ -278,7 +280,7 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) (status i
 	// "godoc os RemoveAll" says that "If the path does not exist, RemoveAll
 	// returns nil (no error)." WebDAV semantics are that it should return a
 	// "404 Not Found". We therefore have to Stat before we RemoveAll.
-	if _, err := fs.Get(ctx, reqPath); err != nil {
+	if _, err := fs.Get(ctx, reqPath, &fs.GetArgs{}); err != nil {
 		if errs.IsObjectNotFound(err) {
 			return http.StatusNotFound, err
 		}
@@ -331,7 +333,7 @@ func (h *Handler) handlePut(w http.ResponseWriter, r *http.Request) (status int,
 	if err != nil {
 		return http.StatusMethodNotAllowed, err
 	}
-	fi, err := fs.Get(ctx, reqPath)
+	fi, err := fs.Get(ctx, reqPath, &fs.GetArgs{})
 	if err != nil {
 		fi = &obj
 	}
@@ -591,7 +593,7 @@ func (h *Handler) handlePropfind(w http.ResponseWriter, r *http.Request) (status
 	if err != nil {
 		return 403, err
 	}
-	fi, err := fs.Get(ctx, reqPath)
+	fi, err := fs.Get(ctx, reqPath, &fs.GetArgs{})
 	if err != nil {
 		if errs.IsObjectNotFound(err) {
 			return http.StatusNotFound, err
@@ -670,7 +672,7 @@ func (h *Handler) handleProppatch(w http.ResponseWriter, r *http.Request) (statu
 	if err != nil {
 		return 403, err
 	}
-	if _, err := fs.Get(ctx, reqPath); err != nil {
+	if _, err := fs.Get(ctx, reqPath, &fs.GetArgs{}); err != nil {
 		if errs.IsObjectNotFound(err) {
 			return http.StatusNotFound, err
 		}

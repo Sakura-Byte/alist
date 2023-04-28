@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	stdpath "path"
@@ -68,7 +67,7 @@ func (d *Local) GetAddition() driver.Additional {
 
 func (d *Local) List(ctx context.Context, dir model.Obj, args model.ListArgs) ([]model.Obj, error) {
 	fullPath := dir.GetPath()
-	rawFiles, err := ioutil.ReadDir(fullPath)
+	rawFiles, err := readDir(fullPath)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +143,7 @@ func (d *Local) Link(ctx context.Context, file model.Obj, args model.LinkArgs) (
 			}
 			srcBuf = videoBuf
 		} else {
-			imgData, err := ioutil.ReadFile(fullPath)
+			imgData, err := os.ReadFile(fullPath)
 			if err != nil {
 				return nil, err
 			}

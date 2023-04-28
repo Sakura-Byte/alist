@@ -17,7 +17,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: sakurapy/alist-crack
+          images: sakurapy/alist
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2

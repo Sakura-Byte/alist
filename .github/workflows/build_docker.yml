@@ -15,7 +15,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: sakurapy/alist-crack
+          images: sakurapy/alist
       - name: Replace release with dev
         run: |
           sed -i 's/release/dev/g' Dockerfile

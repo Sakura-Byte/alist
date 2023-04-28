@@ -3,8 +3,6 @@ package search
 import (
 	"strings"
 
-	"github.com/alist-org/alist/v3/drivers/alist_v3"
-	"github.com/alist-org/alist/v3/drivers/base"
 	"github.com/alist-org/alist/v3/internal/conf"
 	"github.com/alist-org/alist/v3/internal/driver"
 	"github.com/alist-org/alist/v3/internal/model"
@@ -42,28 +40,9 @@ func updateIgnorePaths() {
 	storages := op.GetAllStorages()
 	ignorePaths := make([]string, 0)
 	var skipDrivers = []string{"AList V2", "AList V3", "Virtual"}
-	v3Visited := make(map[string]bool)
 	for _, storage := range storages {
 		if utils.SliceContains(skipDrivers, storage.Config().Name) {
-			if storage.Config().Name == "AList V3" {
-				addition := storage.GetAddition().(*alist_v3.Addition)
-				allowIndexed, visited := v3Visited[addition.Address]
-				if !visited {
-					url := addition.Address + "/api/public/settings"
-					res, err := base.RestyClient.R().Get(url)
-					if err == nil {
-						log.Debugf("allow_indexed body: %+v", res.String())
-						allowIndexed = utils.Json.Get(res.Body(), "data", conf.AllowIndexed).ToString() == "true"
-						v3Visited[addition.Address] = allowIndexed
-					}
-				}
-				log.Debugf("%s allow_indexed: %v", addition.Address, allowIndexed)
-				if !allowIndexed {
-					ignorePaths = append(ignorePaths, storage.GetStorage().MountPath)
-				}
-			} else {
-				ignorePaths = append(ignorePaths, storage.GetStorage().MountPath)
-			}
+			ignorePaths = append(ignorePaths, storage.GetStorage().MountPath)
 		}
 	}
 	customIgnorePaths := setting.GetStr(conf.IgnorePaths)

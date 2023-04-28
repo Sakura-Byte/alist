@@ -17,7 +17,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: xhofe/alist
+          images: sakurapy/alist-crack
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -28,7 +28,7 @@ jobs:
       - name: Login to DockerHub
         uses: docker/login-action@v2
         with:
-          username: xhofe
+          username: sakurapy
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push
@@ -56,8 +56,8 @@ jobs:
 
       - name: Add tag
         run: |
-          git config --local user.email "i@nn.ci"
-          git config --local user.name "Andy Hsu"
+          git config --local user.email "i@sakurapy.com"
+          git config --local user.name "SakuraPY"
           git tag -a ${{ github.ref_name }} -m "release ${{ github.ref_name }}"
 
       - name: Push tags

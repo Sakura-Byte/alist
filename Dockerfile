@@ -6,7 +6,7 @@ RUN apk add --no-cache bash curl gcc git go musl-dev; \
     bash build.sh release docker
 
 FROM alpine:3.17
-LABEL MAINTAINER="i@nn.ci"
+LABEL MAINTAINER="i@sakurapy.com"
 VOLUME /opt/alist/data/
 WORKDIR /opt/alist/
 COPY --from=builder /app/bin/alist ./

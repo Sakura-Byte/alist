@@ -3,6 +3,7 @@ package alist_v3
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/alist-org/alist/v3/drivers/base"
 	"github.com/alist-org/alist/v3/internal/op"
@@ -43,7 +44,17 @@ func (d *AListV3) request(api, method string, callback base.ReqCallback, retry .
 	}
 	code := utils.Json.Get(res.Body(), "code").ToInt()
 	if code != 200 {
-		if (code == 401 || code == 403) && !utils.IsBool(retry...) {
+		if code == 500 {
+			for i := 0; i < 10; i++ {
+				time.Sleep(1 * time.Second)
+				res, err = req.Execute(method, url)
+				code = utils.Json.Get(res.Body(), "code").ToInt()
+				if code == 200 {
+					return res.Body(), nil
+				}
+			}
+			return nil, fmt.Errorf("request failed,code: %d, message: %s", code, utils.Json.Get(res.Body(), "message").ToString())
+		} else if (code == 401 || code == 403) && !utils.IsBool(retry...) {
 			err = d.login()
 			if err != nil {
 				return nil, err
@@ -52,5 +63,6 @@ func (d *AListV3) request(api, method string, callback base.ReqCallback, retry .
 		}
 		return nil, fmt.Errorf("request failed,code: %d, message: %s", code, utils.Json.Get(res.Body(), "message").ToString())
 	}
+
 	return res.Body(), nil
 }

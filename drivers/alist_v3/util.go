@@ -46,7 +46,7 @@ func (d *AListV3) request(api, method string, callback base.ReqCallback, retry .
 	if code != 200 {
 		if code == 500 {
 			for i := 0; i < 10; i++ {
-				time.Sleep(1 * time.Second)
+				time.Sleep(0.2 * time.Second)
 				res, err = req.Execute(method, url)
 				code = utils.Json.Get(res.Body(), "code").ToInt()
 				if code == 200 {

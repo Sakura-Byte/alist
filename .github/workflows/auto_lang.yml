@@ -33,7 +33,7 @@ jobs:
       - name: Checkout alist-web
         uses: actions/checkout@v3
         with:
-          repository: 'alist-org/alist-web'
+          repository: 'Sakura-Byte/alist-web'
           ref: main
           persist-credentials: false
           fetch-depth: 0
@@ -64,4 +64,4 @@ jobs:
           github_token: ${{ secrets.MY_TOKEN }}
           branch: main
           directory: alist-web
-          repository: alist-org/alist-web
+          repository: Sakura-Byte/alist-web

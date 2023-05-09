@@ -16,7 +16,6 @@ import (
 type Cloudreve struct {
 	model.Storage
 	Addition
-	Cookie string
 }
 
 func (d *Cloudreve) Config() driver.Config {
@@ -28,6 +27,9 @@ func (d *Cloudreve) GetAddition() driver.Additional {
 }
 
 func (d *Cloudreve) Init(ctx context.Context) error {
+	if d.Cookie != "" {
+		return nil
+	}
 	return d.login()
 }
 

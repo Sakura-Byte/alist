@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
-
+        "regexp"
 	"github.com/alist-org/alist/v3/drivers/base"
 	"github.com/alist-org/alist/v3/internal/driver"
 	"github.com/alist-org/alist/v3/internal/model"
@@ -63,13 +63,20 @@ func (d *PikPak) Link(ctx context.Context, file model.Obj, args model.LinkArgs) 
 	if err != nil {
 		return nil, err
 	}
-	link := model.Link{
-		URL: resp.WebContentLink,
-	}
+
+	linkURL := resp.WebContentLink
 	if len(resp.Medias) > 0 && resp.Medias[0].Link.Url != "" {
 		log.Debugln("use media link")
-		link.URL = resp.Medias[0].Link.Url
+		linkURL = resp.Medias[0].Link.Url
 	}
+
+	re := regexp.MustCompile(`dl-a10b-\d+`)
+	linkURL = re.ReplaceAllString(linkURL, "dl-a10b-0480")
+
+	link := model.Link{
+		URL: linkURL,
+	}
+
 	return &link, nil
 }
 

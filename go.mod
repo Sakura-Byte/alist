@@ -9,12 +9,12 @@ require (
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/aws/aws-sdk-go v1.44.262
 	github.com/blevesearch/bleve/v2 v2.3.8
-	github.com/caarlos0/env/v7 v7.1.0
+	github.com/caarlos0/env/v9 v9.0.0
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/deckarep/golang-set/v2 v2.3.0
 	github.com/disintegration/imaging v1.6.2
 	github.com/dustinxie/ecc v0.0.0-20210511000915-959544187564
-	github.com/foxxorcat/mopan-sdk-go v0.1.0
+	github.com/foxxorcat/mopan-sdk-go v0.1.1
 	github.com/gin-contrib/cors v1.4.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-resty/resty/v2 v2.7.0
@@ -37,7 +37,7 @@ require (
 	github.com/upyun/go-sdk/v3 v3.0.4
 	github.com/winfsp/cgofuse v1.5.0
 	golang.org/x/crypto v0.11.0
-	golang.org/x/image v0.7.0
+	golang.org/x/image v0.9.0
 	golang.org/x/net v0.12.0
 	golang.org/x/oauth2 v0.10.0
 	gorm.io/driver/mysql v1.4.7

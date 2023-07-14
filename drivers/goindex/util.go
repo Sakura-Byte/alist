@@ -43,6 +43,7 @@ func (d *GoIndex) getFiles(path string) ([]File, error) {
 			return nil, err
 		}
 		req.Header.Set("Content-Type", "application/json; charset=utf-8")
+		req.Header.Set("Connection", "close")
 		answer, err := base.HttpClient.Do(req)
 		if err != nil {
 			return nil, err

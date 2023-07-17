@@ -1,0 +1,105 @@
+First thing first, we need to define a Header.
+{
+    'sec-ch-ua-mobile': '?0',
+    'upgrade-insecure-requests': '1',
+    'dnt': '1',
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36 Edg/90.0.818.51',
+    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+    'service-worker-navigation-preload': 'true',
+    'sec-fetch-site': 'same-origin',
+    'sec-fetch-mode': 'navigate',
+    'sec-fetch-dest': 'iframe',
+    'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+}
+
+
+First, we have a Onedrive/Sharepoint Sharelink, like(this is a onedrive sharelink)
+https://sakurapy-my.sharepoint.com/:f:/g/personal/admin_sakurapy_onmicrosoft_com/Eqmo_XCAYLVAjZhIS36sbAQBBBfweXBOKVmk-oM3kiac7A?e=hdmVXt
+Sharepoint sharelink is like this, but there is no "-my" in the link, for example
+https://acgdb1.sharepoint.com/:u:/s/test/ETzoma96sDhNgKiblBIgLJABcWvUiHg2mgDpIAo8ElZ6kQ?e=wEDKaH
+
+Let's Take Onedrive as an example.
+When we request this link, we will get a 302 redirect to a link. Name that link as redirectUrl, and store the result of requesting(with redirect) to result, store the "Set-Cookie" of the header as cookie.
+THEN, the redirectUrl is like:
+https://sakurapy-my.sharepoint.com/personal/admin_sakurapy_onmicrosoft_com/_layouts/15/onedrive.aspx?id=%2Fpersonal%2Fadmin_sakurapy_onmicrosoft_com%2FDocuments%2FDMYZ&ga=1
+Here, when we throw the content after the last '/' and add "/download.aspx?UniqueId=" to it, it will become the url prefix for download link, store it as downloadLinkPrefix.
+Here, it's like: https://sakurapy-my.sharepoint.com/personal/admin_sakurapy_onmicrosoft_com/_layouts/15/download.aspx?UniqueId=
+We got the id parameter, this is case %2Fpersonal%2Fadmin_sakurapy_onmicrosoft_com%2FDocuments%2FDMYZ, store it as rootFolderPre
+
+If It is a Sharepoint url, the redirectURL will be like:
+https://acgdb1.sharepoint.com/sites/test/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2Ftest%2FShared%20Documents%2Frclone%2Edeb&parent=%2Fsites%2Ftest%2FShared%20Documents&p=true&ga=1
+We got the id parameter(not the id below), this is case %2Fsites%2Ftest%2FShared%20Documents%2Frclone%2Edeb, store it as rootFolderPre
+Use regex 'templateUrl":"(.*?)"' to search the templateUrl in result, we will got something like:
+"https://acgdb1.sharepoint.com/sites/test/_layouts/15/CreateNewDocument.aspx?id=https://acgdb1.sharepoint.com/sites/test/Shared%20Documents/Forms/template.dotx"
+Also, throw the content after the last '/' and add "/download.aspx?UniqueId=" to it, it will become the url prefix for download link
+In this case, it would be like: https://acgdb1.sharepoint.com/sites/test/_layouts/15/download.aspx?UniqueId=
+store it as downloadLinkPrefix.
+
+Here, we need to modify the header.
+Get the netloc of redirectURL and store it as netloc.
+The referer of the header should be the redirectURL.
+The cookie of the header is already stored above.
+The authority of the header should be the netloc.
+
+URL decode the rootFolderPre, we will got /personal/admin_sakurapy_onmicrosoft_com/Documents/DMYZ, store it as rootFolder.
+Then we store ANYTHING before 'Documents'(included, or 'Shared Documents') into relativePath. In this case, it's /personal/admin_sakurapy_onmicrosoft_com/Documents'
+We url encode relativePath and replace _ with %5F and - with %2D store it as relativeUrl. The relativePath/redirectUrl will not be changed.
+If you need to access subfolder, you need to add the subfolder name after rootFolder, like /personal/admin_sakurapy_onmicrosoft_com/Documents/DMYZ/subfolder
+We url encode rootFolder and replace _ with %5F and - with %2D store it as rootFolderUrl.
+
+Next, we are getting filesData, please refer to the python code:
+    graphqlVar = '{"query":"query (\n        $listServerRelativeUrl: String!,$renderListDataAsStreamParameters: RenderListDataAsStreamParameters!,$renderListDataAsStreamQueryString: String!\n        )\n      {\n      \n      legacy {\n      \n      renderListDataAsStream(\n      listServerRelativeUrl: $listServerRelativeUrl,\n      parameters: $renderListDataAsStreamParameters,\n      queryString: $renderListDataAsStreamQueryString\n      )\n    }\n      \n      \n  perf {\n    executionTime\n    overheadTime\n    parsingTime\n    queryCount\n    validationTime\n    resolvers {\n      name\n      queryCount\n      resolveTime\n      waitTime\n    }\n  }\n    }","variables":{"listServerRelativeUrl":"%s","renderListDataAsStreamParameters":{"renderOptions":5707527,"allowMultipleValueFilterForTaxonomyFields":true,"addRequiredFields":true,"folderServerRelativeUrl":"%s"},"renderListDataAsStreamQueryString":"@a1=\'%s\'&RootFolder=%s&TryNewExperienceSingle=TRUE"}}' % (relativeFolder, rootFolder, relativeUrl, rootFolderUrl)
+    s2 = urllib.parse.urlparse(redirectURL)
+    tempHeader = copy.deepcopy(header)
+    tempHeader["referer"] = redirectURL
+    tempHeader["cookie"] = reqf.headers["set-cookie"]
+    tempHeader["authority"] = s2.netloc
+    tempHeader["content-type"] = "application/json;odata=verbose"
+    # print(redirectSplitURL)
+
+    graphqlReq = req.post(
+        "/".join(redirectSplitURL[:-3])+"/_api/v2.1/graphql", data=graphqlVar.encode('utf-8'), headers=tempHeader)
+    graphqlReq = json.loads(graphqlReq.text)
+    # print(graphqlReq)
+    if "NextHref" in graphqlReq["data"]["legacy"]["renderListDataAsStream"]["ListData"]:
+        nextHref = graphqlReq[
+            "data"]["legacy"]["renderListDataAsStream"]["ListData"]["NextHref"]+"&@a1=%s&TryNewExperienceSingle=TRUE" % (
+            "%27"+relativeUrl+"%27")
+        filesData.extend(graphqlReq[
+            "data"]["legacy"]["renderListDataAsStream"]["ListData"]["Row"])
+        # print(filesData)
+
+        listViewXml = graphqlReq[
+            "data"]["legacy"]["renderListDataAsStream"]["ViewMetadata"]["ListViewXml"]
+        renderListDataAsStreamVar = '{"parameters":{"__metadata":{"type":"SP.RenderListDataParameters"},"RenderOptions":1216519,"ViewXml":"%s","AllowMultipleValueFilterForTaxonomyFields":true,"AddRequiredFields":true}}' % (
+            listViewXml).replace('"', '\\"')
+        # print(renderListDataAsStreamVar, nextHref,1)
+
+        # print(listViewXml)
+
+        graphqlReq = req.post(
+            "/".join(redirectSplitURL[:-3])+"/_api/web/GetListUsingPath(DecodedUrl=@a1)/RenderListDataAsStream"+nextHref, data=renderListDataAsStreamVar.encode('utf-8'), headers=tempHeader)
+        graphqlReq = json.loads(graphqlReq.text)
+        # print(graphqlReq)
+
+        while "NextHref" in graphqlReq["ListData"]:
+            nextHref = graphqlReq["ListData"]["NextHref"]+"&@a1=%s&TryNewExperienceSingle=TRUE" % (
+                "%27"+relativeUrl+"%27")
+            filesData.extend(graphqlReq["ListData"]["Row"])
+            graphqlReq = req.post(
+                "/".join(redirectSplitURL[:-3])+"/_api/web/GetListUsingPath(DecodedUrl=@a1)/RenderListDataAsStream"+nextHref, data=renderListDataAsStreamVar.encode('utf-8'), headers=tempHeader)
+            # print(graphqlReq.text)
+            graphqlReq = json.loads(graphqlReq.text)
+            # print(graphqlReq)
+        filesData.extend(graphqlReq["ListData"]["Row"])
+    else:
+        filesData.extend(graphqlReq[
+            "data"]["legacy"]["renderListDataAsStream"]["ListData"]["Row"])
+
+In the filesData, we can know the items in the current folder.
+The ModifyTime is like '2023-07-11T15:46:58Z'
+If the filesData[i]["FSObjType"] == 1, it's a folder, we can get the folder name by filesData[i]["FileLeafRef"], the ModifyTime by filesData[i]["Modified."].
+If it's not, then it's a file. Also, you can get the file name by filesData[i]["FileLeafRef"], the ModifyTime by filesData[i]["Modified."], the size by filesData[i]["File_x0020_Size"], and the UniqueId by filesData[i]["UniqueId"].
+The UniqueId is like {47F4573D-39F0-4EBE-9746-1ECF507E2564}
+We need to remove the curly braces. Then download link would be downloadLinkPrefix + UniqueId(without curly braces).
+Note that the download link should be used with the header so that it can get the file content.

@@ -16,6 +16,7 @@ type Addition struct {
 	IsSharepoint       bool
 	downloadLinkPrefix string
 	Headers            http.Header
+	HeaderTime         int64
 }
 
 var config = driver.Config{

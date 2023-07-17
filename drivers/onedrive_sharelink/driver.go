@@ -3,6 +3,7 @@ package onedrive_sharelink
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/alist-org/alist/v3/internal/driver"
 	"github.com/alist-org/alist/v3/internal/errs"
@@ -59,8 +60,15 @@ func (d *OnedriveSharelink) Link(ctx context.Context, file model.Obj, args model
 	uniqueId = uniqueId[1 : len(uniqueId)-1]
 	url := d.downloadLinkPrefix + uniqueId
 	header := d.Headers
-	log.Debugln("link url:", url)
-	log.Debugf("link header: %+v", header)
+	// if d.HeaderTime(timestamp) is older than 30min, get new headers
+	if d.HeaderTime < time.Now().Unix()-1800 {
+		var err error
+		log.Debug("headers are older than 1 hour, get new headers")
+		header, err = d.getHeaders()
+		if err != nil {
+			return nil, err
+		}
+	}
 	return &model.Link{
 		URL:    url,
 		Header: header,

@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -33,6 +33,8 @@ func (d *OnedriveSharelink) getHeaders() (http.Header, error) {
 	header := http.Header{}
 	header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36 Edg/90.0.818.51")
 	header.Set("accept-language", "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6")
+	//save timestamp to d.HeaderTime
+	d.HeaderTime = time.Now().Unix()
 	if d.ShareLinkPassword == "" {
 		//no redirect client
 		clientNoDirect := NewNoRedirectCLient()
@@ -153,7 +155,7 @@ func (d *OnedriveSharelink) getFiles(path string) ([]Item, error) {
 		// Use regex 'templateUrl":"(.*?)"' to search the templateUrl
 		re := regexp.MustCompile(`templateUrl":"(.*?)"`)
 		// get the body of the answer
-		body, err := ioutil.ReadAll(answer.Body)
+		body, err := io.ReadAll(answer.Body)
 		if err != nil {
 			return nil, err
 		}
@@ -260,7 +262,14 @@ func (d *OnedriveSharelink) getFiles(path string) ([]Item, error) {
 		req, _ = http.NewRequest("POST", postUrl, strings.NewReader(renderListDataAsStreamVar))
 		req.Header = tempHeader
 
-		resp, _ := client.Do(req)
+		resp, err := client.Do(req)
+		if err != nil {
+			d.Headers, err = d.getHeaders()
+			if err != nil {
+				return nil, err
+			}
+			return d.getFiles(path)
+		}
 		defer resp.Body.Close()
 		//clear graphqlReq
 		json.NewDecoder(resp.Body).Decode(&graphqlReqNEW)
@@ -271,7 +280,14 @@ func (d *OnedriveSharelink) getFiles(path string) ([]Item, error) {
 			postUrl = strings.Join(redirectSplitURL[:len(redirectSplitURL)-3], "/") + "/_api/web/GetListUsingPath(DecodedUrl=@a1)/RenderListDataAsStream" + nextHref
 			req, _ = http.NewRequest("POST", postUrl, strings.NewReader(renderListDataAsStreamVar))
 			req.Header = tempHeader
-			resp, _ := client.Do(req)
+			resp, err := client.Do(req)
+			if err != nil {
+				d.Headers, err = d.getHeaders()
+				if err != nil {
+					return nil, err
+				}
+				return d.getFiles(path)
+			}
 			defer resp.Body.Close()
 			json.NewDecoder(resp.Body).Decode(&graphqlReqNEW)
 			nextHref = graphqlReqNEW.ListData.NextHref + "&@a1=REPLACEME&TryNewExperienceSingle=TRUE"

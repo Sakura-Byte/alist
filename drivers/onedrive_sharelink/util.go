@@ -107,6 +107,14 @@ func (d *OnedriveSharelink) getHeaders() (http.Header, error) {
 
 }
 
+func (d *OnedriveSharelink) testRod(url string) error {
+	l, err := launcher.NewManaged(url)
+	if err != nil {
+		return err
+	}
+	defer l.Cleanup()
+	return nil
+}
 func (d *OnedriveSharelink) getFiles(path string) ([]Item, error) {
 	//no redirect client
 	clientNoDirect := NewNoRedirectCLient()

@@ -13,6 +13,7 @@ import (
 
 	"github.com/alist-org/alist/v3/internal/conf"
 	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/launcher"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -69,7 +70,10 @@ func (d *OnedriveSharelink) getHeaders() (http.Header, error) {
 		// return the header
 		return header, nil
 	} else {
-		browser := rod.New().MustConnect()
+		// create a launcher using external browser
+		l := launcher.MustNewManaged(d.RodAddress)
+		l.Set("disable-gpu").Delete("disable-gpu")
+		browser := rod.New().Client(l.MustClient()).MustConnect()
 		defer browser.MustClose()
 		// create a page
 		page := browser.MustPage(d.ShareLinkURL)

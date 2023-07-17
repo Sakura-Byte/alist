@@ -17,6 +17,7 @@ type Addition struct {
 	downloadLinkPrefix string
 	Headers            http.Header
 	HeaderTime         int64
+	RodAddress         string
 }
 
 var config = driver.Config{

@@ -17,7 +17,7 @@ type Addition struct {
 	downloadLinkPrefix string
 	Headers            http.Header
 	HeaderTime         int64
-	RodAddress         string
+	RodAddress         string `json:"rod_address" required:"true" default:"ws://127.0.0.1:7317"`
 }
 
 var config = driver.Config{

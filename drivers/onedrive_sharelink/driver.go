@@ -28,7 +28,7 @@ func (d *OnedriveSharelink) GetAddition() driver.Additional {
 func (d *OnedriveSharelink) Init(ctx context.Context) error {
 	//test if d.RodAddress can be connected(websocket)
 	//if not, return error
-	if d.ShareLinkURL == "" {
+	if d.ShareLinkPassword != "" {
 		if err := d.testRod(d.RodAddress); err != nil {
 			return err
 		}

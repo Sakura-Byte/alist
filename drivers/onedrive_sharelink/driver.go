@@ -9,6 +9,7 @@ import (
 	"github.com/alist-org/alist/v3/internal/errs"
 	"github.com/alist-org/alist/v3/internal/model"
 	"github.com/alist-org/alist/v3/pkg/utils"
+	"github.com/go-rod/rod"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -26,6 +27,8 @@ func (d *OnedriveSharelink) GetAddition() driver.Additional {
 }
 
 func (d *OnedriveSharelink) Init(ctx context.Context) error {
+	browser := rod.New().MustConnect()
+	defer browser.MustClose()
 	//init err
 	var err error
 	// if there is "-my" in the url, it is NOT a sharepoint link

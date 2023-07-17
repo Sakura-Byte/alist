@@ -7,7 +7,8 @@ import (
 
 type Addition struct {
 	driver.RootPath
-	URL string `json:"url" required:"true"`
+	URL        string `json:"url" required:"true"`
+	DriveIndex string `json:"driveIndex" required:"true" default:"0"`
 }
 
 var config = driver.Config{

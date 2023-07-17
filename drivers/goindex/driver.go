@@ -50,7 +50,7 @@ func (d *GoIndex) List(ctx context.Context, dir model.Obj, args model.ListArgs) 
 
 func (d *GoIndex) Link(ctx context.Context, file model.Obj, args model.LinkArgs) (*model.Link, error) {
 	path := url.PathEscape(file.GetPath())
-	linkURL := d.URL + "/0:" + path
+	linkURL := d.URL + "/" + d.DriveIndex + ":" + path
 	return &model.Link{
 		URL: linkURL,
 	}, nil

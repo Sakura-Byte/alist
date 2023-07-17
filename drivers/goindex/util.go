@@ -15,7 +15,7 @@ import (
 
 func (d *GoIndex) getFiles(path string) ([]File, error) {
 	path_encoded := url.PathEscape(path)
-	URL_list := d.URL + "/0:" + path_encoded
+	URL_list := d.URL + "/" + d.DriveIndex + ":" + path_encoded
 	//replace all %2F to /
 	URL_list = strings.ReplaceAll(URL_list, "%2F", "/")
 	page_token := "first"

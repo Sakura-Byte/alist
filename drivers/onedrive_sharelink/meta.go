@@ -20,12 +20,11 @@ type Addition struct {
 }
 
 var config = driver.Config{
-	Name:              "Onedrive Sharelink",
-	OnlyProxy:         true,
-	NoUpload:          true,
-	DefaultRoot:       "/",
-	CheckStatus:       false,
-	NoOverwriteUpload: false,
+	Name:        "Onedrive Sharelink",
+	OnlyProxy:   true,
+	NoUpload:    true,
+	DefaultRoot: "/",
+	CheckStatus: false,
 }
 
 func init() {

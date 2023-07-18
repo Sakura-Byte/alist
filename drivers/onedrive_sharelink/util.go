@@ -12,9 +12,8 @@ import (
 	"time"
 
 	"github.com/alist-org/alist/v3/internal/conf"
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/launcher"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/net/html"
 )
 
 func NewNoRedirectCLient() *http.Client {
@@ -30,6 +29,98 @@ func NewNoRedirectCLient() *http.Client {
 		},
 	}
 }
+
+func getCookiesWithPassword(link, password string) string {
+	// Send GET request
+	resp, err := http.Get(link)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	// Parse the HTML response
+	doc, err := html.Parse(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+
+	// Find input fields by their IDs
+	var viewstate, eventvalidation, postAction string
+
+	var findInputFields func(*html.Node)
+	findInputFields = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == "input" {
+			for _, attr := range n.Attr {
+				if attr.Key == "id" {
+					switch attr.Val {
+					case "__VIEWSTATE":
+						viewstate = getAttrValue(n, "value")
+					case "__EVENTVALIDATION":
+						eventvalidation = getAttrValue(n, "value")
+					}
+				}
+			}
+		}
+		if n.Type == html.ElementNode && n.Data == "form" {
+			for _, attr := range n.Attr {
+				if attr.Key == "id" && attr.Val == "inputForm" {
+					postAction = getAttrValue(n, "action")
+				}
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			findInputFields(c)
+		}
+	}
+	findInputFields(doc)
+
+	// Prepare the new URL for the POST request
+	linkParts, err := url.Parse(link)
+	if err != nil {
+		panic(err)
+	}
+
+	newURL := fmt.Sprintf("%s://%s%s", linkParts.Scheme, linkParts.Host, postAction)
+
+	// Prepare the request body
+	data := url.Values{
+		"txtPassword":          []string{password},
+		"__EVENTVALIDATION":    []string{eventvalidation},
+		"__VIEWSTATE":          []string{viewstate},
+		"__VIEWSTATEENCRYPTED": []string{""},
+	}
+
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	// Send the POST request,no redirect
+	resp, err = client.PostForm(newURL, data)
+	if err != nil {
+		panic(err)
+	}
+	// Extract the desired cookie value
+	cookie := resp.Cookies()
+	var fedAuthCookie string
+	for _, c := range cookie {
+		if c.Name == "FedAuth" {
+			fedAuthCookie = c.Value
+			break
+		}
+	}
+	return fmt.Sprintf("FedAuth=%s;", fedAuthCookie)
+}
+
+func getAttrValue(n *html.Node, key string) string {
+	for _, attr := range n.Attr {
+		if attr.Key == key {
+			return attr.Val
+		}
+	}
+	return ""
+}
+
 func (d *OnedriveSharelink) getHeaders() (http.Header, error) {
 	header := http.Header{}
 	header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36 Edg/90.0.818.51")
@@ -70,39 +161,7 @@ func (d *OnedriveSharelink) getHeaders() (http.Header, error) {
 		// return the header
 		return header, nil
 	} else {
-		// create a launcher using external browser
-		l := launcher.MustNewManaged(d.RodAddress)
-		l.Set("disable-gpu").Delete("disable-gpu")
-		browser := rod.New().Client(l.MustClient()).MustConnect()
-		defer browser.MustClose()
-		// create a page
-		page := browser.MustPage(d.ShareLinkURL)
-		// wait until btnSubmitPassword is clickable
-		wait := page.MustWaitRequestIdle()
-		wait()
-		// find the password input
-		passwordInput := page.MustElement("input[id='txtPassword']")
-		// type the password
-		passwordInput.MustInput(d.ShareLinkPassword)
-		// find the submit button
-		submitButton := page.MustElement("input[id='btnSubmitPassword']")
-		// click the submit button
-		submitButton.MustClick()
-		// wait for the page to load
-		page.MustWaitLoad()
-		cookies := page.MustCookies()
-		for cookies == nil {
-			// get the cookies
-			cookies = page.MustCookies()
-			time.Sleep(time.Millisecond * 50)
-		}
-
-		cookiesString := ""
-		for _, cookie := range cookies {
-			cookiesString += cookie.Name + "=" + cookie.Value + "; "
-		}
-		// set the cookie
-		header.Set("Cookie", cookiesString)
+		header.Set("Cookie", getCookiesWithPassword(d.ShareLinkURL, d.ShareLinkPassword))
 		// set the referer
 		header.Set("Referer", d.ShareLinkURL)
 		// set the authority
@@ -111,16 +170,6 @@ func (d *OnedriveSharelink) getHeaders() (http.Header, error) {
 		return header, nil
 	}
 
-}
-
-func (d *OnedriveSharelink) testRod(url string) error {
-	l, err := launcher.NewManaged(url)
-	if err != nil {
-		return err
-	}
-	browser := rod.New().Client(l.MustClient()).MustConnect()
-	defer browser.MustClose()
-	return nil
 }
 func (d *OnedriveSharelink) getFiles(path string) ([]Item, error) {
 	//no redirect client

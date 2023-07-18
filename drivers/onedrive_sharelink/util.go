@@ -77,8 +77,9 @@ func (d *OnedriveSharelink) getHeaders() (http.Header, error) {
 		defer browser.MustClose()
 		// create a page
 		page := browser.MustPage(d.ShareLinkURL)
-		// wait for the page to load
-		page.MustWaitLoad()
+		// wait until btnSubmitPassword is clickable
+		wait := page.MustWaitRequestIdle()
+		wait()
 		// find the password input
 		passwordInput := page.MustElement("input[id='txtPassword']")
 		// type the password
@@ -89,8 +90,13 @@ func (d *OnedriveSharelink) getHeaders() (http.Header, error) {
 		submitButton.MustClick()
 		// wait for the page to load
 		page.MustWaitLoad()
-		// get the cookies
 		cookies := page.MustCookies()
+		for cookies == nil {
+			// get the cookies
+			cookies = page.MustCookies()
+			time.Sleep(time.Millisecond * 50)
+		}
+
 		cookiesString := ""
 		for _, cookie := range cookies {
 			cookiesString += cookie.Name + "=" + cookie.Value + "; "
@@ -112,7 +118,8 @@ func (d *OnedriveSharelink) testRod(url string) error {
 	if err != nil {
 		return err
 	}
-	defer l.Cleanup()
+	browser := rod.New().Client(l.MustClient()).MustConnect()
+	defer browser.MustClose()
 	return nil
 }
 func (d *OnedriveSharelink) getFiles(path string) ([]Item, error) {

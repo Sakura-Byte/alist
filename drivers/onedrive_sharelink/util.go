@@ -30,18 +30,18 @@ func NewNoRedirectCLient() *http.Client {
 	}
 }
 
-func getCookiesWithPassword(link, password string) string {
+func getCookiesWithPassword(link, password string) (string, error) {
 	// Send GET request
 	resp, err := http.Get(link)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 	defer resp.Body.Close()
 
 	// Parse the HTML response
 	doc, err := html.Parse(resp.Body)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
 	// Find input fields by their IDs
@@ -77,7 +77,7 @@ func getCookiesWithPassword(link, password string) string {
 	// Prepare the new URL for the POST request
 	linkParts, err := url.Parse(link)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 
 	newURL := fmt.Sprintf("%s://%s%s", linkParts.Scheme, linkParts.Host, postAction)
@@ -98,7 +98,7 @@ func getCookiesWithPassword(link, password string) string {
 	// Send the POST request,no redirect
 	resp, err = client.PostForm(newURL, data)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
 	// Extract the desired cookie value
 	cookie := resp.Cookies()
@@ -109,7 +109,7 @@ func getCookiesWithPassword(link, password string) string {
 			break
 		}
 	}
-	return fmt.Sprintf("FedAuth=%s;", fedAuthCookie)
+	return fmt.Sprintf("FedAuth=%s;", fedAuthCookie), nil
 }
 
 func getAttrValue(n *html.Node, key string) string {
@@ -161,7 +161,11 @@ func (d *OnedriveSharelink) getHeaders() (http.Header, error) {
 		// return the header
 		return header, nil
 	} else {
-		header.Set("Cookie", getCookiesWithPassword(d.ShareLinkURL, d.ShareLinkPassword))
+		cookie, err := getCookiesWithPassword(d.ShareLinkURL, d.ShareLinkPassword)
+		if err != nil {
+			return nil, err
+		}
+		header.Set("Cookie", cookie)
 		// set the referer
 		header.Set("Referer", d.ShareLinkURL)
 		// set the authority

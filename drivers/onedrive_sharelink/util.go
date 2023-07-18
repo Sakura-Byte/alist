@@ -109,6 +109,9 @@ func getCookiesWithPassword(link, password string) (string, error) {
 			break
 		}
 	}
+	if fedAuthCookie == "" {
+		return "", fmt.Errorf("wrong password")
+	}
 	return fmt.Sprintf("FedAuth=%s;", fedAuthCookie), nil
 }
 

@@ -151,6 +151,9 @@ func (d *OnedriveSharelink) getHeaders() (http.Header, error) {
 		// get the location
 		redirectUrl := answerNoRedirect.Header.Get("Location")
 		log.Debugln("redirectUrl:", redirectUrl)
+		if redirectUrl == "" {
+			return nil, fmt.Errorf("password protected link. Please provide password")
+		}
 		header.Set("Cookie", answerNoRedirect.Header.Get("Set-Cookie"))
 		// set Referer to the redirectUrl
 		header.Set("Referer", redirectUrl)

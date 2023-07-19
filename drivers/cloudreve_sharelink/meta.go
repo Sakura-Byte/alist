@@ -9,11 +9,11 @@ type Addition struct {
 	// Usually one of two
 	driver.RootPath
 	// define other
-	Address      string `json:"address" required:"true"`
-	SharelinkKey string `json:"sharelink_key"`
-	Username     string `json:"username"`
+	Sharelink    string `json:"sharelink" required:"true"`
+	Address      string
+	SharelinkKey string
 	Password     string `json:"password"`
-	Cookie       string `json:"cookie"`
+	Cookie       string
 }
 
 var config = driver.Config{

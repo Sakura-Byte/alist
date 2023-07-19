@@ -11,8 +11,6 @@ import (
 
 // do others that not defined in Driver interface
 
-const loginPath = "/user/session"
-
 func (d *CloudreveSharelink) request(method string, path string, callback base.ReqCallback, out interface{}) error {
 	u := d.Address + "/api/v3" + path
 	req := base.RestyClient.R()
@@ -39,18 +37,6 @@ func (d *CloudreveSharelink) request(method string, path string, callback base.R
 	}
 
 	if r.Code != 0 {
-
-		// 刷新 cookie
-		if r.Code == http.StatusUnauthorized && path != loginPath {
-			if d.Username != "" && d.Password != "" {
-				err = d.login()
-				if err != nil {
-					return err
-				}
-				return d.request(method, path, callback, out)
-			}
-		}
-
 		return errors.New(r.Msg)
 	}
 	sess := cookie.GetCookie(resp.Cookies(), "cloudreve-session")
@@ -70,6 +56,19 @@ func (d *CloudreveSharelink) request(method string, path string, callback base.R
 	}
 
 	return nil
+}
+func (d *CloudreveSharelink) checkIfProtected(password string) (bool, error) {
+	var Locked ShareLinkInfo
+	var err error
+	if password == "" {
+		err = d.request(http.MethodGet, "/share/info/"+d.SharelinkKey, nil, &Locked)
+	} else {
+		err = d.request(http.MethodGet, "/share/info/"+d.SharelinkKey+"?password="+password, nil, &Locked)
+	}
+	if err != nil {
+		return false, err
+	}
+	return Locked.Locked, nil
 }
 
 func (d *CloudreveSharelink) login() error {

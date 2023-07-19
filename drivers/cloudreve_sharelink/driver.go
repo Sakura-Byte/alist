@@ -27,21 +27,47 @@ func (d *CloudreveSharelink) GetAddition() driver.Additional {
 }
 
 func (d *CloudreveSharelink) Init(ctx context.Context) error {
-	if d.Cookie != "" {
-		return nil
-	}
+	//clear cookie
+	d.Cookie = ""
+	d.Sharelink = strings.TrimSuffix(d.Sharelink, "/")
 	//if d.Address contains "/s/"
-	if d.SharelinkKey == "" {
-		if strings.Contains(d.Address, "/s/") {
-			d.SharelinkKey = strings.Split(d.Address, "/s/")[1]
-			d.Address = strings.Split(d.Address, "/s/")[0]
-		} else {
-			return errs.EmptyToken
-		}
+	if strings.Contains(d.Sharelink, "/s/") {
+		//ignore former value, overwrite it
+		d.SharelinkKey = strings.Split(d.Sharelink, "/s/")[1]
+		d.Address = strings.Split(d.Sharelink, "/s/")[0]
+	} else {
+		return errs.EmptyToken
 	}
-
 	// removing trailing slash
 	d.Address = strings.TrimSuffix(d.Address, "/")
+	var tempIsLocked bool
+	tempIsLocked, err := d.checkIfProtected("")
+	if err != nil {
+		return err
+	}
+	//detect if link is locked
+	if !tempIsLocked {
+		if d.Password != "" {
+			//clear password
+			d.Password = ""
+		}
+	}
+	d.Cookie = ""
+	//detect if password is correct
+	tempIsLocked, err = d.checkIfProtected(d.Password)
+	if err != nil {
+		return err
+	}
+	//still locked
+	if tempIsLocked {
+		//no password
+		if d.Password == "" {
+			return errs.EmptyPassword
+		} else {
+			//wrong password
+			return errs.WrongPassword
+		}
+	}
 	return d.login()
 }
 
@@ -67,6 +93,10 @@ func (d *CloudreveSharelink) Link(ctx context.Context, file model.Obj, args mode
 	var dUrl string
 	path_encoded := url.PathEscape(file.GetPath())
 	err := d.request(http.MethodPut, "/share/download/"+d.SharelinkKey+"?path="+path_encoded, nil, &dUrl)
+	//if dUrl is a relative path, add d.Address
+	if !strings.HasPrefix(dUrl, "http") {
+		dUrl = d.Address + dUrl
+	}
 	if err != nil {
 		return nil, err
 	}

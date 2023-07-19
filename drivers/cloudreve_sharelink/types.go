@@ -43,6 +43,9 @@ type Object struct {
 	CreateDate    time.Time `json:"create_date"`
 	SourceEnabled bool      `json:"source_enabled"`
 }
+type ShareLinkInfo struct {
+	Locked bool `json:"locked"`
+}
 
 func objectToObj(f Object) *model.Object {
 	return &model.Object{

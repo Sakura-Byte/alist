@@ -79,6 +79,8 @@ func (d *CloudreveSharelink) Drop(ctx context.Context) error {
 func (d *CloudreveSharelink) List(ctx context.Context, dir model.Obj, args model.ListArgs) ([]model.Obj, error) {
 	var r DirectoryResp
 	path_encoded := url.PathEscape(dir.GetPath())
+	//replace "+" with "%2B"
+	path_encoded = strings.Replace(path_encoded, "+", "%2B", -1)
 	err := d.request(http.MethodGet, "/share/list/"+d.SharelinkKey+path_encoded, nil, &r)
 	if err != nil {
 		return nil, err
@@ -91,7 +93,10 @@ func (d *CloudreveSharelink) List(ctx context.Context, dir model.Obj, args model
 
 func (d *CloudreveSharelink) Link(ctx context.Context, file model.Obj, args model.LinkArgs) (*model.Link, error) {
 	var dUrl string
+	//encode every character in path
 	path_encoded := url.PathEscape(file.GetPath())
+	//replace "+" with "%2B"
+	path_encoded = strings.Replace(path_encoded, "+", "%2B", -1)
 	err := d.request(http.MethodPut, "/share/download/"+d.SharelinkKey+"?path="+path_encoded, nil, &dUrl)
 	//if dUrl is a relative path, add d.Address
 	if !strings.HasPrefix(dUrl, "http") {

@@ -13,6 +13,8 @@ type Addition struct {
 	Address      string
 	SharelinkKey string
 	Password     string `json:"password"`
+	Username     string `json:"username"`
+	Userpass     string `json:"userpass"`
 	Cookie       string
 }
 

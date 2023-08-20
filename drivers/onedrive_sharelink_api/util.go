@@ -287,6 +287,10 @@ func (d *OnedriveSharelinkAPI) _refreshToken() error {
 	if err != nil {
 		return err
 	}
+	d.Headers, err = d.getHeaders()
+	if err != nil {
+		return err
+	}
 	req.Header = d.Headers
 	answer, err := NoRedirectClient.Do(req)
 	if err != nil {
@@ -330,7 +334,7 @@ func (d *OnedriveSharelinkAPI) Request(url string, method string, callback base.
 		return nil, err
 	}
 	if e.Error.Code != "" {
-		if e.Error.Code == "InvalidAuthenticationToken" {
+		if e.Error.Code == "InvalidAuthenticationToken" || e.Error.Code == "unauthenticated" {
 			err = d.refreshToken()
 			if err != nil {
 				return nil, err

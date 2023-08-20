@@ -9,13 +9,14 @@ import (
 
 type Addition struct {
 	driver.RootPath
-	AccessToken       string
 	RedirectUrl       string
 	ChunkSize         int64  `json:"chunk_size" type:"number" default:"5"`
 	ShareLinkURL      string `json:"url" required:"true"`
 	ShareLinkPassword string `json:"password"`
+	UseSharelinkRoot  bool   `json:"use_sharelink_root"`
 	Headers           http.Header
 	BaseUrl           string
+	SharelinkRootPath string
 }
 
 var config = driver.Config{

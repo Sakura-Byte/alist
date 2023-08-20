@@ -19,7 +19,6 @@ import (
 	"github.com/alist-org/alist/v3/internal/conf"
 	"github.com/alist-org/alist/v3/internal/driver"
 	"github.com/alist-org/alist/v3/internal/model"
-	"github.com/alist-org/alist/v3/internal/op"
 	"github.com/alist-org/alist/v3/pkg/utils"
 	"github.com/go-resty/resty/v2"
 	jsoniter "github.com/json-iterator/go"
@@ -27,7 +26,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-func NewNoRedirectCLient() *http.Client {
+func (d *OnedriveSharelinkAPI) NewNoRedirectCLient() *http.Client {
 	return &http.Client{
 		Timeout: time.Hour * 48,
 		Transport: &http.Transport{
@@ -41,7 +40,7 @@ func NewNoRedirectCLient() *http.Client {
 	}
 }
 
-func getCookiesWithPassword(link, password string) (string, error) {
+func (d *OnedriveSharelinkAPI) getCookiesWithPassword(link, password string) (string, error) {
 	// Send GET request
 	resp, err := http.Get(link)
 	if err != nil {
@@ -65,9 +64,9 @@ func getCookiesWithPassword(link, password string) (string, error) {
 				if attr.Key == "id" {
 					switch attr.Val {
 					case "__VIEWSTATE":
-						viewstate = getAttrValue(n, "value")
+						viewstate = d.getAttrValue(n, "value")
 					case "__EVENTVALIDATION":
-						eventvalidation = getAttrValue(n, "value")
+						eventvalidation = d.getAttrValue(n, "value")
 					}
 				}
 			}
@@ -75,7 +74,7 @@ func getCookiesWithPassword(link, password string) (string, error) {
 		if n.Type == html.ElementNode && n.Data == "form" {
 			for _, attr := range n.Attr {
 				if attr.Key == "id" && attr.Val == "inputForm" {
-					postAction = getAttrValue(n, "action")
+					postAction = d.getAttrValue(n, "action")
 				}
 			}
 		}
@@ -101,11 +100,7 @@ func getCookiesWithPassword(link, password string) (string, error) {
 		"__VIEWSTATEENCRYPTED": []string{""},
 	}
 
-	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
+	client := d.NewNoRedirectCLient()
 	// Send the POST request,no redirect
 	resp, err = client.PostForm(newURL, data)
 	if err != nil {
@@ -126,7 +121,7 @@ func getCookiesWithPassword(link, password string) (string, error) {
 	return fmt.Sprintf("FedAuth=%s;", fedAuthCookie), nil
 }
 
-func getAttrValue(n *html.Node, key string) string {
+func (d *OnedriveSharelinkAPI) getAttrValue(n *html.Node, key string) string {
 	for _, attr := range n.Attr {
 		if attr.Key == key {
 			return attr.Val
@@ -135,13 +130,43 @@ func getAttrValue(n *html.Node, key string) string {
 	return ""
 }
 
+func (d *OnedriveSharelinkAPI) getSharelinkRoot() error {
+	if !d.UseSharelinkRoot {
+		d.SharelinkRootPath = ""
+		return nil
+	}
+	u, err := url.Parse(d.RedirectUrl)
+	if err != nil {
+		return err
+	}
+	id := u.Query().Get("id")
+	//url decode
+	id, err = url.QueryUnescape(id)
+	if err != nil {
+		return err
+	}
+	// we throw ANYTHING before 'Documents'(included, or 'Shared Documents')
+	// away, and use the rest as the root id
+	//sth like /a/b/c/Documents/d/e/f -> /d/e/f
+	id = strings.TrimRight(id, "/")
+	parts := strings.Split(id, "/")
+	for i, part := range parts {
+		if part == "Documents" || part == "Shared Documents" {
+			id = strings.Join(parts[i+1:], "/")
+			break
+		}
+	}
+	d.SharelinkRootPath = "/" + id
+	return nil
+}
+
 func (d *OnedriveSharelinkAPI) getHeaders() (http.Header, error) {
 	header := http.Header{}
 	header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36 Edg/90.0.818.51")
 	header.Set("accept-language", "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6")
 	if d.ShareLinkPassword == "" {
 		//no redirect client
-		clientNoDirect := NewNoRedirectCLient()
+		clientNoDirect := d.NewNoRedirectCLient()
 		// create a request
 		req, err := http.NewRequest("GET", d.ShareLinkURL, nil)
 		if err != nil {
@@ -173,7 +198,7 @@ func (d *OnedriveSharelinkAPI) getHeaders() (http.Header, error) {
 		// return the header
 		return header, nil
 	} else {
-		cookie, err := getCookiesWithPassword(d.ShareLinkURL, d.ShareLinkPassword)
+		cookie, err := d.getCookiesWithPassword(d.ShareLinkURL, d.ShareLinkPassword)
 		if err != nil {
 			return nil, err
 		}
@@ -190,7 +215,7 @@ func (d *OnedriveSharelinkAPI) getHeaders() (http.Header, error) {
 
 func (d *OnedriveSharelinkAPI) GetRedirectUrl() (err error) {
 	//no redirect client
-	clientNoDirect := NewNoRedirectCLient()
+	clientNoDirect := d.NewNoRedirectCLient()
 	// create a request
 	req, err := http.NewRequest("GET", d.ShareLinkURL, nil)
 	if err != nil {
@@ -232,7 +257,7 @@ func (d *OnedriveSharelinkAPI) GetRedirectUrl() (err error) {
 }
 func (d *OnedriveSharelinkAPI) GetBaseUrl() error {
 	//get the netloc of the ShareLinkURL
-	clientNoDirect := NewNoRedirectCLient()
+	clientNoDirect := d.NewNoRedirectCLient()
 	//request the redirectUrl with d.Headers
 	req, err := http.NewRequest("GET", d.RedirectUrl, nil)
 	if err != nil {
@@ -260,10 +285,15 @@ func (d *OnedriveSharelinkAPI) GetBaseUrl() error {
 	return nil
 }
 func (d *OnedriveSharelinkAPI) GetMetaUrl(auth bool, path string) string {
+	//add d.SharelinkRootPath to path
+	path = d.SharelinkRootPath + path
 	path = utils.EncodePath(path, true)
 	if path == "/" || path == "\\" {
 		return fmt.Sprintf("%s/root", d.BaseUrl)
 	} else {
+		//delete the last "/" or "\"
+		path = strings.TrimSuffix(path, "/")
+		path = strings.TrimSuffix(path, "\\")
 		return fmt.Sprintf("%s/root:%s:", d.BaseUrl, path)
 	}
 }
@@ -271,49 +301,13 @@ func (d *OnedriveSharelinkAPI) GetMetaUrl(auth bool, path string) string {
 func (d *OnedriveSharelinkAPI) refreshToken() error {
 	var err error
 	for i := 0; i < 3; i++ {
-		err = d._refreshToken()
+		d.Headers, err = d.getHeaders()
 		if err == nil {
 			break
 		}
 	}
 	return err
 }
-
-func (d *OnedriveSharelinkAPI) _refreshToken() error {
-	url := d.RedirectUrl
-	NoRedirectClient := NewNoRedirectCLient()
-	//request with the d.Headers
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return err
-	}
-	d.Headers, err = d.getHeaders()
-	if err != nil {
-		return err
-	}
-	req.Header = d.Headers
-	answer, err := NoRedirectClient.Do(req)
-	if err != nil {
-		return err
-	}
-	// Use regex '".driveAccessToken":"(.*?)"' to search the driveUrl
-	re := regexp.MustCompile(`".driveAccessToken":"(.*?)"`)
-	body, err := io.ReadAll(answer.Body)
-	if err != nil {
-		return err
-	}
-	// get the first match
-	accessToken := re.FindString(string(body))
-	//delete access_token= in the accessToken
-	accessToken = strings.Replace(accessToken, `access_token=`, "", -1)
-	d.AccessToken = accessToken
-	if err != nil {
-		return err
-	}
-	op.MustSaveDriverStorage(d)
-	return nil
-}
-
 func (d *OnedriveSharelinkAPI) Request(url string, method string, callback base.ReqCallback, resp interface{}) ([]byte, error) {
 	req := base.RestyClient.R()
 	req.Header = d.Headers

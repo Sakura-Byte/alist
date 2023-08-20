@@ -2,9 +2,7 @@ package onedrive_sharelink_api
 
 import (
 	"context"
-	"fmt"
 	"net/http"
-	"path"
 
 	"github.com/alist-org/alist/v3/drivers/base"
 	"github.com/alist-org/alist/v3/internal/driver"
@@ -38,6 +36,10 @@ func (d *OnedriveSharelinkAPI) Init(ctx context.Context) error {
 		return err
 	}
 	err = d.GetRedirectUrl()
+	if err != nil {
+		return err
+	}
+	err = d.getSharelinkRoot()
 	if err != nil {
 		return err
 	}
@@ -89,50 +91,11 @@ func (d *OnedriveSharelinkAPI) MakeDir(ctx context.Context, parentDir model.Obj,
 }
 
 func (d *OnedriveSharelinkAPI) Move(ctx context.Context, srcObj, dstDir model.Obj) error {
-	parentPath := ""
-	if dstDir.GetID() == "" {
-		parentPath = dstDir.GetPath()
-		if utils.PathEqual(parentPath, "/") {
-			parentPath = path.Join("/drive/root", parentPath)
-		} else {
-			parentPath = path.Join("/drive/root:/", parentPath)
-		}
-	}
-	data := base.Json{
-		"parentReference": base.Json{
-			"id":   dstDir.GetID(),
-			"path": parentPath,
-		},
-		"name": srcObj.GetName(),
-	}
-	url := d.GetMetaUrl(false, srcObj.GetPath())
-	_, err := d.Request(url, http.MethodPatch, func(req *resty.Request) {
-		req.SetBody(data)
-	}, nil)
-	return err
+	return errs.NotSupport
 }
 
 func (d *OnedriveSharelinkAPI) Rename(ctx context.Context, srcObj model.Obj, newName string) error {
-	var parentID string
-	if o, ok := srcObj.(*Object); ok {
-		parentID = o.ParentID
-	} else {
-		return fmt.Errorf("srcObj is not Object")
-	}
-	if parentID == "" {
-		parentID = "root"
-	}
-	data := base.Json{
-		"parentReference": base.Json{
-			"id": parentID,
-		},
-		"name": newName,
-	}
-	url := d.GetMetaUrl(false, srcObj.GetPath())
-	_, err := d.Request(url, http.MethodPatch, func(req *resty.Request) {
-		req.SetBody(data)
-	}, nil)
-	return err
+	return errs.NotSupport
 }
 
 func (d *OnedriveSharelinkAPI) Copy(ctx context.Context, srcObj, dstDir model.Obj) error {
@@ -155,9 +118,7 @@ func (d *OnedriveSharelinkAPI) Copy(ctx context.Context, srcObj, dstDir model.Ob
 }
 
 func (d *OnedriveSharelinkAPI) Remove(ctx context.Context, obj model.Obj) error {
-	url := d.GetMetaUrl(false, obj.GetPath())
-	_, err := d.Request(url, http.MethodDelete, nil, nil)
-	return err
+	return errs.NotSupport
 }
 
 func (d *OnedriveSharelinkAPI) Put(ctx context.Context, dstDir model.Obj, stream model.FileStreamer, up driver.UpdateProgress) error {

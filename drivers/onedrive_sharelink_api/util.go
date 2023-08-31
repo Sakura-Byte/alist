@@ -256,6 +256,10 @@ func (d *OnedriveSharelinkAPI) GetRedirectUrl() (err error) {
 	return nil
 }
 func (d *OnedriveSharelinkAPI) GetBaseUrl() error {
+	isSharepoint := false
+	if !strings.Contains(d.RedirectUrl, "-my") {
+		isSharepoint = true
+	}
 	//get the netloc of the ShareLinkURL
 	clientNoDirect := d.NewNoRedirectCLient()
 	//request the redirectUrl with d.Headers
@@ -268,19 +272,30 @@ func (d *OnedriveSharelinkAPI) GetBaseUrl() error {
 	if err != nil {
 		return err
 	}
-	// Use regex '".driveUrl":"(.*?)"' to search the driveUrl
-	re := regexp.MustCompile(`".driveUrl":"(.*?)"`)
 	body, err := io.ReadAll(answer.Body)
 	if err != nil {
 		return err
 	}
-	// get the first match
-	driveUrl := re.FindString(string(body))
-	//replace \u002f to /
-	driveUrl = strings.Replace(driveUrl, `\u002f`, "/", -1)
-	//delete "\".driveUrl\":\" and \""
-	driveUrl = strings.Replace(driveUrl, `".driveUrl":"`, ``, -1)
-	driveUrl = strings.Replace(driveUrl, `"`, "", -1)
+	driveUrl := ""
+	if !isSharepoint {
+		re := regexp.MustCompile(`".driveUrl":"(.*?)"`)
+		// get the first match
+		driveUrl = re.FindString(string(body))
+		//replace \u002f to /
+		driveUrl = strings.Replace(driveUrl, `\u002f`, "/", -1)
+		//delete "\".driveUrl\":\" and \""
+		driveUrl = strings.Replace(driveUrl, `".driveUrl":"`, ``, -1)
+		driveUrl = strings.Replace(driveUrl, `"`, "", -1)
+	} else {
+		re := regexp.MustCompile(`".driveUrl" : "(.*?)"`)
+		// get the first match
+		driveUrl = re.FindString(string(body))
+		//replace \u002f to /
+		driveUrl = strings.Replace(driveUrl, `\u002f`, "/", -1)
+		//delete "\".driveUrl\":\" and \""
+		driveUrl = strings.Replace(driveUrl, `".driveUrl" : "`, ``, -1)
+		driveUrl = strings.Replace(driveUrl, `"`, "", -1)
+	}
 	d.BaseUrl = driveUrl
 	return nil
 }

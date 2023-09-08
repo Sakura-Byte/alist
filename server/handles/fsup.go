@@ -1,6 +1,7 @@
 package handles
 
 import (
+	"io"
 	"net/url"
 	stdpath "path"
 	"strconv"
@@ -102,6 +103,7 @@ func FsForm(c *gin.Context) {
 		common.ErrorResp(c, err, 500)
 		return
 	}
+	defer f.Close()
 	dir, name := stdpath.Split(path)
 	s := stream.FileStream{
 		Obj: &model.Object{
@@ -113,17 +115,19 @@ func FsForm(c *gin.Context) {
 		Mimetype:     file.Header.Get("Content-Type"),
 		WebPutAsTask: asTask,
 	}
-	ss, err := stream.NewSeekableStream(s, nil)
-	if err != nil {
-		common.ErrorResp(c, err, 500)
-		return
-	}
 	if asTask {
-		err = fs.PutAsTask(dir, ss)
+		s.Reader = struct {
+			io.Reader
+		}{f}
+		err = fs.PutAsTask(dir, &s)
 	} else {
+		ss, err := stream.NewSeekableStream(s, nil)
+		if err != nil {
+			common.ErrorResp(c, err, 500)
+			return
+		}
 		err = fs.PutDirectly(c, dir, ss, true)
 	}
-	defer f.Close()
 	if err != nil {
 		common.ErrorResp(c, err, 500)
 		return

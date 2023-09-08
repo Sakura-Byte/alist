@@ -22,7 +22,7 @@ func Init(e *gin.Engine) {
 	Cors(e)
 	g := e.Group(conf.URL.Path)
 	if conf.Conf.Scheme.HttpPort != -1 && conf.Conf.Scheme.HttpsPort != -1 && conf.Conf.Scheme.ForceHttps {
-		g.Use(middlewares.ForceHttps)
+		e.Use(middlewares.ForceHttps)
 	}
 	g.Any("/ping", func(c *gin.Context) {
 		c.String(200, "pong")
@@ -71,8 +71,8 @@ func Init(e *gin.Engine) {
 
 	_fs(auth.Group("/fs"))
 	admin(auth.Group("/admin", middlewares.AuthAdmin))
-	if flags.Dev {
-		dev(g.Group("/dev"))
+	if flags.Debug || flags.Dev {
+		debug(g.Group("/debug"))
 	}
 	static.Static(g, func(handlers ...gin.HandlerFunc) {
 		e.NoRoute(handlers...)

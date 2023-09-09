@@ -33,4 +33,5 @@ type FolderResp struct {
 		Context string `json:"@odata.context"`
 		Value   []Obj  `json:"value"`
 	} `json:"folder"`
+	Next string `json:"next"`
 }

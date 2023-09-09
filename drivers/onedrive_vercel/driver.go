@@ -36,29 +36,40 @@ func (d *OnedriveVercel) Drop(ctx context.Context) error {
 
 func (d *OnedriveVercel) List(ctx context.Context, dir model.Obj, args model.ListArgs) ([]model.Obj, error) {
 	url := d.Address + "/api/?path=" + url.QueryEscape(dir.GetPath())
-	var resp FolderResp
-	req := base.RestyClient.R().
-		SetResult(&resp)
-	if d.Host != "" {
-		req.SetHeader("Host", d.Host)
-	}
-	_, err := req.Get(url)
-	if err != nil {
-		return nil, err
-	}
+	next := "first"
+	urlnext := ""
 	var files []model.Obj
-	for _, f := range resp.Folder.Value {
-		file := model.ObjThumb{
-			Object: model.Object{
-				Name:     f.Name,
-				Modified: *f.LastModifiedDateTime,
-				Size:     f.Size,
-				IsFolder: f.Folder != nil,
-			},
-			Thumbnail: model.Thumbnail{},
+	for next != "" {
+		var resp FolderResp
+		req := base.RestyClient.R().
+			SetResult(&resp)
+		if d.Host != "" {
+			req.SetHeader("Host", d.Host)
 		}
-		files = append(files, &file)
+		if next == "first" {
+			urlnext = url
+		} else {
+			urlnext = url + "&next=" + next
+		}
+		_, err := req.Get(urlnext)
+		if err != nil {
+			return nil, err
+		}
+		for _, f := range resp.Folder.Value {
+			file := model.ObjThumb{
+				Object: model.Object{
+					Name:     f.Name,
+					Modified: *f.LastModifiedDateTime,
+					Size:     f.Size,
+					IsFolder: f.Folder != nil,
+				},
+				Thumbnail: model.Thumbnail{},
+			}
+			files = append(files, &file)
+		}
+		next = resp.Next
 	}
+
 	return files, nil
 }
 

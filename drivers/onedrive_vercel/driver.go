@@ -39,8 +39,9 @@ func (d *OnedriveVercel) List(ctx context.Context, dir model.Obj, args model.Lis
 	next := "first"
 	urlnext := ""
 	var files []model.Obj
+	var resp FolderResp
 	for next != "" {
-		var resp FolderResp
+		resp.Next = ""
 		req := base.RestyClient.R().
 			SetResult(&resp)
 		if d.Host != "" {

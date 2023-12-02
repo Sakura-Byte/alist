@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"regexp"
 	"strings"
 
 	"github.com/alist-org/alist/v3/drivers/base"
@@ -66,9 +65,6 @@ func (d *PikPak) Link(ctx context.Context, file model.Obj, args model.LinkArgs) 
 		log.Debugln("use media link")
 		linkURL = resp.Medias[0].Link.Url
 	}
-
-	re := regexp.MustCompile(`dl-a10b-\d+`)
-	linkURL = re.ReplaceAllString(linkURL, "dl-a10b-0480")
 
 	link := model.Link{
 		URL: linkURL,

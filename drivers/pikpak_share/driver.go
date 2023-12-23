@@ -3,6 +3,9 @@ package pikpak_share
 import (
 	"context"
 	"net/http"
+	"net/url"
+	"strings"
+
 	"github.com/alist-org/alist/v3/internal/driver"
 	"github.com/alist-org/alist/v3/internal/model"
 	"github.com/alist-org/alist/v3/pkg/utils"
@@ -36,6 +39,9 @@ func (d *PikPakShare) Init(ctx context.Context) error {
 			return err
 		}
 	}
+	if d.CustomHost != "" {
+		d.CustomHost = strings.TrimSuffix(d.CustomHost, "/")
+	}
 	return nil
 }
 
@@ -67,6 +73,14 @@ func (d *PikPakShare) Link(ctx context.Context, file model.Obj, args model.LinkA
 		return nil, err
 	}
 	linkURL := resp.FileInfo.WebContentLink
+	if d.CustomHost != "" {
+		parse, err := url.Parse(linkURL)
+		if err != nil {
+			return nil, err
+		}
+		//replace host
+		linkURL = strings.Replace(linkURL, "https://"+parse.Host, d.CustomHost, 1)
+	}
 	link := model.Link{
 		URL: linkURL,
 	}

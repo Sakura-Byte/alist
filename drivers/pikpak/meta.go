@@ -10,6 +10,7 @@ type Addition struct {
 	Username         string `json:"username" required:"true"`
 	Password         string `json:"password" required:"true"`
 	DisableMediaLink bool   `json:"disable_media_link"`
+	CustomHost       string `json:"custom_host"`
 }
 
 var config = driver.Config{

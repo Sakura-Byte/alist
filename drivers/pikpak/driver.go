@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/alist-org/alist/v3/drivers/base"
@@ -35,6 +36,9 @@ func (d *PikPak) GetAddition() driver.Additional {
 }
 
 func (d *PikPak) Init(ctx context.Context) error {
+	if d.CustomHost != "" {
+		d.CustomHost = strings.TrimSuffix(d.CustomHost, "/")
+	}
 	return d.login()
 }
 
@@ -65,7 +69,14 @@ func (d *PikPak) Link(ctx context.Context, file model.Obj, args model.LinkArgs) 
 		log.Debugln("use media link")
 		linkURL = resp.Medias[0].Link.Url
 	}
-
+	if d.CustomHost != "" {
+		parse, err := url.Parse(linkURL)
+		if err != nil {
+			return nil, err
+		}
+		//replace host
+		linkURL = strings.Replace(linkURL, "https://"+parse.Host, d.CustomHost, 1)
+	}
 	link := model.Link{
 		URL: linkURL,
 	}

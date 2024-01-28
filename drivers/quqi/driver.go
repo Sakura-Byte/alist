@@ -16,12 +16,14 @@ import (
 	"github.com/alist-org/alist/v3/pkg/utils"
 	"github.com/alist-org/alist/v3/pkg/utils/random"
 	"github.com/go-resty/resty/v2"
+	log "github.com/sirupsen/logrus"
 	"github.com/tencentyun/cos-go-sdk-v5"
 )
 
 type Quqi struct {
 	model.Storage
 	Addition
+	Cookie   string // Cookie
 	GroupID  string // 私人云群组ID
 	ClientID string // 随机生成客户端ID 经过测试，部分接口调用若不携带client id会出现错误
 }
@@ -125,26 +127,27 @@ func (d *Quqi) List(ctx context.Context, dir model.Obj, args model.ListArgs) ([]
 }
 
 func (d *Quqi) Link(ctx context.Context, file model.Obj, args model.LinkArgs) (*model.Link, error) {
-	var getDocResp = &GetDocRes{}
-
-	if _, err := d.request("", "/api/doc/getDoc", resty.MethodPost, func(req *resty.Request) {
-		req.SetFormData(map[string]string{
-			"quqi_id":   d.GroupID,
-			"tree_id":   "1",
-			"node_id":   file.GetID(),
-			"client_id": d.ClientID,
-		})
-	}, getDocResp); err != nil {
-		return nil, err
+	if d.CDN {
+		link, err := d.linkFromCDN(file.GetID())
+		if err != nil {
+			log.Warn(err)
+		} else {
+			return link, nil
+		}
 	}
 
-	return &model.Link{
-		URL: getDocResp.Data.OriginPath,
-		Header: http.Header{
-			"Origin": []string{"https://quqi.com"},
-			"Cookie": []string{d.Cookie},
-		},
-	}, nil
+	link, err := d.linkFromPreview(file.GetID())
+	if err != nil {
+		log.Warn(err)
+	} else {
+		return link, nil
+	}
+
+	link, err = d.linkFromDownload(file.GetID())
+	if err != nil {
+		return nil, err
+	}
+	return link, nil
 }
 
 func (d *Quqi) MakeDir(ctx context.Context, parentDir model.Obj, dirName string) (model.Obj, error) {
@@ -306,6 +309,22 @@ func (d *Quqi) Put(ctx context.Context, dstDir model.Obj, stream model.FileStrea
 	if err != nil {
 		return nil, err
 	}
+	// check exist
+	// if the file already exists in Quqi server, there is no need to actually upload it
+	if uploadInitResp.Data.Exist {
+		// the file name returned by Quqi does not include the extension name
+		nodeName, nodeExt := uploadInitResp.Data.NodeName, rawExt(stream.GetName())
+		if nodeExt != "" {
+			nodeName = nodeName + "." + nodeExt
+		}
+		return &model.Object{
+			ID:       strconv.FormatInt(uploadInitResp.Data.NodeID, 10),
+			Name:     nodeName,
+			Size:     stream.GetSize(),
+			Modified: stream.ModTime(),
+			Ctime:    stream.CreateTime(),
+		}, nil
+	}
 	// listParts
 	_, err = d.request("upload.quqi.com:20807", "/upload/v1/listParts", resty.MethodPost, func(req *resty.Request) {
 		req.SetFormData(map[string]string{
@@ -384,9 +403,14 @@ func (d *Quqi) Put(ctx context.Context, dstDir model.Obj, stream model.FileStrea
 	if err != nil {
 		return nil, err
 	}
+	// the file name returned by Quqi does not include the extension name
+	nodeName, nodeExt := uploadFinishResp.Data.NodeName, rawExt(stream.GetName())
+	if nodeExt != "" {
+		nodeName = nodeName + "." + nodeExt
+	}
 	return &model.Object{
 		ID:       strconv.FormatInt(uploadFinishResp.Data.NodeID, 10),
-		Name:     uploadFinishResp.Data.NodeName,
+		Name:     nodeName,
 		Size:     stream.GetSize(),
 		Modified: stream.ModTime(),
 		Ctime:    stream.CreateTime(),

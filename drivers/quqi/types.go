@@ -31,6 +31,13 @@ type GetDocRes struct {
 	} `json:"data"`
 }
 
+type GetDownloadResp struct {
+	BaseRes
+	Data struct {
+		Url string `json:"url"`
+	} `json:"data"`
+}
+
 type MakeDirRes struct {
 	BaseRes
 	Data struct {
@@ -133,6 +140,9 @@ type UploadInitResp struct {
 		Token    string `json:"token"`
 		UploadID string `json:"upload_id"`
 		URL      string `json:"url"`
+		NodeID   int64  `json:"node_id"`
+		NodeName string `json:"node_name"`
+		ParentID int64  `json:"parent_id"`
 	} `json:"data"`
 	Err int    `json:"err"`
 	Msg string `json:"msg"`
@@ -164,4 +174,24 @@ type UploadFinishResp struct {
 	} `json:"data"`
 	Err int    `json:"err"`
 	Msg string `json:"msg"`
+}
+
+type UrlExchangeResp struct {
+	BaseRes
+	Data struct {
+		Name               string `json:"name"`
+		Mime               string `json:"mime"`
+		Size               int64  `json:"size"`
+		DownloadType       int    `json:"download_type"`
+		ChannelType        int    `json:"channel_type"`
+		ChannelID          int    `json:"channel_id"`
+		Url                string `json:"url"`
+		ExpiredTime        int64  `json:"expired_time"`
+		IsEncrypted        bool   `json:"is_encrypted"`
+		EncryptedSize      int64  `json:"encrypted_size"`
+		EncryptedAlg       string `json:"encrypted_alg"`
+		EncryptedKey       string `json:"encrypted_key"`
+		PassportID         int64  `json:"passport_id"`
+		RequestExpiredTime int64  `json:"request_expired_time"`
+	} `json:"data"`
 }

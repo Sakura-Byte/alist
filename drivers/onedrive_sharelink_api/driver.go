@@ -3,18 +3,22 @@ package onedrive_sharelink_api
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/alist-org/alist/v3/drivers/base"
 	"github.com/alist-org/alist/v3/internal/driver"
 	"github.com/alist-org/alist/v3/internal/errs"
 	"github.com/alist-org/alist/v3/internal/model"
+	"github.com/alist-org/alist/v3/pkg/cron"
 	"github.com/alist-org/alist/v3/pkg/utils"
 	"github.com/go-resty/resty/v2"
+	log "github.com/sirupsen/logrus"
 )
 
 type OnedriveSharelinkAPI struct {
 	model.Storage
 	Addition
+	cron        *cron.Cron
 	AccessToken string
 }
 
@@ -27,6 +31,18 @@ func (d *OnedriveSharelinkAPI) GetAddition() driver.Additional {
 }
 
 func (d *OnedriveSharelinkAPI) Init(ctx context.Context) error {
+	d.cron = cron.NewCron(time.Hour * 1)
+	d.cron.Do(func() {
+		var err error
+		d.Headers, err = d.getHeaders()
+		if err != nil {
+			log.Errorf("%+v", err)
+		}
+		err = d.refreshToken()
+		if err != nil {
+			log.Errorf("%+v", err)
+		}
+	})
 	var err error
 	if d.ChunkSize < 1 {
 		d.ChunkSize = 5

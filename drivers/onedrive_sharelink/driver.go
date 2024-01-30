@@ -8,12 +8,14 @@ import (
 	"github.com/alist-org/alist/v3/internal/driver"
 	"github.com/alist-org/alist/v3/internal/errs"
 	"github.com/alist-org/alist/v3/internal/model"
+	"github.com/alist-org/alist/v3/pkg/cron"
 	"github.com/alist-org/alist/v3/pkg/utils"
 	log "github.com/sirupsen/logrus"
 )
 
 type OnedriveSharelink struct {
 	model.Storage
+	cron *cron.Cron
 	Addition
 }
 
@@ -30,6 +32,15 @@ func (d *OnedriveSharelink) Init(ctx context.Context) error {
 	var err error
 	// if there is "-my" in the url, it is NOT a sharepoint link
 	d.IsSharepoint = !strings.Contains(d.ShareLinkURL, "-my")
+	//init cron
+	d.cron = cron.NewCron(time.Hour * 1)
+	d.cron.Do(func() {
+		var err error
+		d.Headers, err = d.getHeaders()
+		if err != nil {
+			log.Errorf("%+v", err)
+		}
+	})
 	d.Headers, err = d.getHeaders()
 	if err != nil {
 		return err

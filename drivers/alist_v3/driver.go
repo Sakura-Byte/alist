@@ -35,8 +35,22 @@ func (d *AListV3) Init(ctx context.Context) error {
 	_, err := d.request("/me", http.MethodGet, func(req *resty.Request) {
 		req.SetResult(&resp)
 	})
+	if err != nil {
+		return err
+	}
+	// if the username is not empty and the username is not the same as the current username, then login again
 	if d.Username != "" && d.Username != resp.Data.Username {
-		return d.login()
+		err = d.login()
+		if err != nil {
+			return err
+		}
+	}
+	// re-get the user info
+	_, err = d.request("/me", http.MethodGet, func(req *resty.Request) {
+		req.SetResult(&resp)
+	})
+	if err != nil {
+		return err
 	}
 	return err
 }

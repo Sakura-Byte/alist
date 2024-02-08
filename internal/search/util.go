@@ -39,7 +39,7 @@ func WriteProgress(progress *model.IndexProgress) {
 func updateIgnorePaths() {
 	storages := op.GetAllStorages()
 	ignorePaths := make([]string, 0)
-	var skipDrivers = []string{"AList V2", "AList V3", "Virtual"}
+	var skipDrivers = []string{"Virtual"}
 	for _, storage := range storages {
 		if utils.SliceContains(skipDrivers, storage.Config().Name) {
 			ignorePaths = append(ignorePaths, storage.GetStorage().MountPath)

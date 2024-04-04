@@ -21,7 +21,6 @@ func initSettings() {
 	if err != nil {
 		utils.Log.Fatalf("failed get settings: %+v", err)
 	}
-
 	for i := range settings {
 		if !isActive(settings[i].Key) && settings[i].Flag != model.DEPRECATED {
 			settings[i].Flag = model.DEPRECATED
@@ -42,7 +41,7 @@ func initSettings() {
 			continue
 		}
 		// save
-		if stored != nil && item.Key != conf.VERSION {
+		if stored != nil && item.Key != conf.VERSION && stored.Value != item.DeprecatedValue {
 			item.Value = stored.Value
 		}
 		if stored == nil || *item != *stored {
@@ -129,7 +128,7 @@ func InitialSettings() []model.SettingItem {
 		// global settings
 		{Key: conf.HideFiles, Value: "/\\/README.md/i", Type: conf.TypeText, Group: model.GLOBAL},
 		{Key: "package_download", Value: "true", Type: conf.TypeBool, Group: model.GLOBAL},
-		{Key: conf.CustomizeHead, Value: `<script src="https://polyfill.io/v3/polyfill.min.js?features=String.prototype.replaceAll"></script>`, Type: conf.TypeText, Group: model.GLOBAL, Flag: model.PRIVATE},
+		{Key: conf.CustomizeHead, DeprecatedValue: `<script src="https://polyfill.io/v3/polyfill.min.js?features=String.prototype.replaceAll"></script>`, Type: conf.TypeText, Group: model.GLOBAL, Flag: model.PRIVATE},
 		{Key: conf.CustomizeBody, Type: conf.TypeText, Group: model.GLOBAL, Flag: model.PRIVATE},
 		{Key: conf.LinkExpiration, Value: "0", Type: conf.TypeNumber, Group: model.GLOBAL, Flag: model.PRIVATE},
 		{Key: conf.SignAll, Value: "true", Type: conf.TypeBool, Group: model.GLOBAL, Flag: model.PRIVATE},
@@ -176,6 +175,12 @@ func InitialSettings() []model.SettingItem {
 		{Key: conf.LdapDefaultDir, Value: "/", Type: conf.TypeString, Group: model.LDAP, Flag: model.PRIVATE},
 		{Key: conf.LdapDefaultPermission, Value: "0", Type: conf.TypeNumber, Group: model.LDAP, Flag: model.PRIVATE},
 		{Key: conf.LdapLoginTips, Value: "login with ldap", Type: conf.TypeString, Group: model.LDAP, Flag: model.PUBLIC},
+
+		//s3 settings
+		{Key: conf.S3Enabled, Value: "false", Type: conf.TypeBool, Group: model.S3, Flag: model.PRIVATE},
+		{Key: conf.S3AccessKeyId, Value: "", Type: conf.TypeString, Group: model.S3, Flag: model.PRIVATE},
+		{Key: conf.S3SecretAccessKey, Value: "", Type: conf.TypeString, Group: model.S3, Flag: model.PRIVATE},
+		{Key: conf.S3Buckets, Value: "[]", Type: conf.TypeString, Group: model.S3, Flag: model.PRIVATE},
 	}
 	initialSettingItems = append(initialSettingItems, tool.Tools.Items()...)
 	if flags.Dev {

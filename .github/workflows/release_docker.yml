@@ -53,7 +53,7 @@ jobs:
         id: meta-ffmpeg
         uses: docker/metadata-action@v5
         with:
-          images: xhofe/alist
+          images: sakurapy/alist
           flavor: |
             latest=true
             suffix=-ffmpeg,onlatest=true

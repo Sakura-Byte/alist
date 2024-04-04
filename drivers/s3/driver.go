@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/alist-org/alist/v3/internal/stream"
+	"github.com/alist-org/alist/v3/pkg/cron"
 
 	"github.com/alist-org/alist/v3/internal/driver"
 	"github.com/alist-org/alist/v3/internal/model"
@@ -26,10 +27,13 @@ type S3 struct {
 	Session    *session.Session
 	client     *s3.S3
 	linkClient *s3.S3
+
+	config driver.Config
+	cron   *cron.Cron
 }
 
 func (d *S3) Config() driver.Config {
-	return config
+	return d.config
 }
 
 func (d *S3) GetAddition() driver.Additional {
@@ -39,6 +43,18 @@ func (d *S3) GetAddition() driver.Additional {
 func (d *S3) Init(ctx context.Context) error {
 	if d.Region == "" {
 		d.Region = "alist"
+	}
+	if d.config.Name == "Doge" {
+		// 多吉云每次临时生成的秘钥有效期为 2h，所以这里设置为 118 分钟重新生成一次
+		d.cron = cron.NewCron(time.Minute * 118)
+		d.cron.Do(func() {
+			err := d.initSession()
+			if err != nil {
+				log.Errorln("Doge init session error:", err)
+			}
+			d.client = d.getClient(false)
+			d.linkClient = d.getClient(true)
+		})
 	}
 	err := d.initSession()
 	if err != nil {
@@ -50,6 +66,9 @@ func (d *S3) Init(ctx context.Context) error {
 }
 
 func (d *S3) Drop(ctx context.Context) error {
+	if d.cron != nil {
+		d.cron.Stop()
+	}
 	return nil
 }
 

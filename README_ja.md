@@ -1,5 +1,5 @@
 <div align="center">
-  <a href="https://alist.nn.ci"><img height="100px" alt="logo" src="https://cdn.jsdelivr.net/gh/alist-org/logo@main/logo.svg"/></a>
+  <a href="https://alist.nn.ci"><img width="100px" alt="logo" src="https://cdn.jsdelivr.net/gh/alist-org/logo@main/logo.svg"/></a>
   <p><em>🗂️Gin と Solidjs による、複数のストレージをサポートするファイルリストプログラム。</em></p>
 <div>
   <a href="https://goreportcard.com/report/github.com/alist-org/alist/v3">
@@ -76,6 +76,7 @@
     - [X] Cloudreve
     - [x] [Dropbox](https://www.dropbox.com/)
     - [x] [FeijiPan](https://www.feijipan.com/)
+    - [x] [dogecloud](https://www.dogecloud.com/product/oss)
 - [x] デプロイが簡単で、すぐに使える
 - [x] ファイルプレビュー (PDF, マークダウン, コード, プレーンテキスト, ...)
 - [x] ギャラリーモードでの画像プレビュー

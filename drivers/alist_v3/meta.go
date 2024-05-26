@@ -16,9 +16,10 @@ type Addition struct {
 }
 
 var config = driver.Config{
-	Name:        "AList V3",
-	LocalSort:   true,
-	DefaultRoot: "/",
+	Name:             "AList V3",
+	LocalSort:        true,
+	DefaultRoot:      "/",
+	ProxyRangeOption: true,
 }
 
 func init() {

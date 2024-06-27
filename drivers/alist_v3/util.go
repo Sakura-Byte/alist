@@ -3,6 +3,7 @@ package alist_v3
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/alist-org/alist/v3/drivers/base"
 	"github.com/alist-org/alist/v3/internal/op"

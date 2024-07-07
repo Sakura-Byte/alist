@@ -255,50 +255,54 @@ func (d *OnedriveSharelinkAPI) GetRedirectUrl() (err error) {
 	}
 	return nil
 }
+
 func (d *OnedriveSharelinkAPI) GetBaseUrl() error {
-	isSharepoint := false
-	if !strings.Contains(d.RedirectUrl, "-my") {
-		isSharepoint = true
-	}
-	//get the netloc of the ShareLinkURL
+	// Initialize HTTP client
 	clientNoDirect := d.NewNoRedirectCLient()
-	//request the redirectUrl with d.Headers
+
+	// Create new HTTP GET request with headers
 	req, err := http.NewRequest("GET", d.RedirectUrl, nil)
 	if err != nil {
 		return err
 	}
 	req.Header = d.Headers
+
+	// Execute request
 	answer, err := clientNoDirect.Do(req)
 	if err != nil {
 		return err
 	}
+	defer answer.Body.Close()
+
+	// Read response body
 	body, err := io.ReadAll(answer.Body)
 	if err != nil {
 		return err
 	}
-	driveUrl := ""
-	if !isSharepoint {
-		re := regexp.MustCompile(`".driveUrl":"(.*?)"`)
-		// get the first match
-		driveUrl = re.FindString(string(body))
-		//replace \u002f to /
-		driveUrl = strings.Replace(driveUrl, `\u002f`, "/", -1)
-		//delete "\".driveUrl\":\" and \""
-		driveUrl = strings.Replace(driveUrl, `".driveUrl":"`, ``, -1)
-		driveUrl = strings.Replace(driveUrl, `"`, "", -1)
-	} else {
-		re := regexp.MustCompile(`".driveUrl" : "(.*?)"`)
-		// get the first match
-		driveUrl = re.FindString(string(body))
-		//replace \u002f to /
-		driveUrl = strings.Replace(driveUrl, `\u002f`, "/", -1)
-		//delete "\".driveUrl\":\" and \""
-		driveUrl = strings.Replace(driveUrl, `".driveUrl" : "`, ``, -1)
-		driveUrl = strings.Replace(driveUrl, `"`, "", -1)
+
+	// Regex pattern for "CurrentFolderSpItemUrl"
+	folderSpItemUrlPattern := regexp.MustCompile(`"CurrentFolderSpItemUrl"\s*:\s*"(.*?)"`)
+
+	// Find first match and extract the URL using submatch
+	matches := folderSpItemUrlPattern.FindStringSubmatch(string(body))
+	if len(matches) < 2 {
+		return fmt.Errorf("URL not found in the response body")
 	}
-	d.BaseUrl = driveUrl
+	driveUrl := matches[1] // This is the captured group that contains just the URL
+
+	// Parse the URL to extract the base part
+	url, err := url.Parse(driveUrl)
+	if err != nil {
+		return err
+	}
+
+	// Trim down the URL to the base directory structure
+	basePath := strings.SplitN(url.Path, "/items", 2)[0]
+	d.BaseUrl = url.Scheme + "://" + url.Host + basePath
+
 	return nil
 }
+
 func (d *OnedriveSharelinkAPI) GetMetaUrl(auth bool, path string) string {
 	//add d.SharelinkRootPath to path
 	path = d.SharelinkRootPath + path

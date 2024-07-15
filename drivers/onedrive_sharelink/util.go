@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alist-org/alist/v3/drivers/base"
 	"github.com/alist-org/alist/v3/internal/conf"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/html"
@@ -126,7 +127,7 @@ func getAttrValue(n *html.Node, key string) string {
 
 func (d *OnedriveSharelink) getHeaders() (http.Header, error) {
 	header := http.Header{}
-	header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36 Edg/90.0.818.51")
+	header.Set("User-Agent", base.UserAgent)
 	header.Set("accept-language", "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6")
 	//save timestamp to d.HeaderTime
 	d.HeaderTime = time.Now().Unix()
@@ -139,7 +140,7 @@ func (d *OnedriveSharelink) getHeaders() (http.Header, error) {
 			return nil, err
 		}
 		// set headers
-		header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36 Edg/90.0.818.51")
+		header.Set("User-Agent", base.UserAgent)
 		header.Set("accept-language", "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6")
 		// set req.Header to d.Header
 		req.Header = header
@@ -194,7 +195,7 @@ func (d *OnedriveSharelink) getFiles(path string) ([]Item, error) {
 	redirectUrl := ""
 	if d.ShareLinkPassword == "" {
 		// set headers
-		header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36 Edg/90.0.818.51")
+		header.Set("User-Agent", base.UserAgent)
 		header.Set("accept-language", "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6")
 		// set req.Header to Header
 		req.Header = header
@@ -221,8 +222,13 @@ func (d *OnedriveSharelink) getFiles(path string) ([]Item, error) {
 	downloadLinkPrefix := ""
 	rootFolderPre := ""
 	if d.IsSharepoint {
+		// update req url
+		req.URL, err = url.Parse(redirectUrl)
+		if err != nil {
+			return nil, err
+		}
 		// Get redirectUrl
-		answer, err := clientNoDirect.Get(redirectUrl)
+		answer, err := clientNoDirect.Do(req)
 		if err != nil {
 			d.Headers, err = d.getHeaders()
 			if err != nil {

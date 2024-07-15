@@ -162,7 +162,7 @@ func (d *OnedriveSharelinkAPI) getSharelinkRoot() error {
 
 func (d *OnedriveSharelinkAPI) getHeaders() (http.Header, error) {
 	header := http.Header{}
-	header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36 Edg/90.0.818.51")
+	header.Set("User-Agent", base.UserAgent)
 	header.Set("accept-language", "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6")
 	if d.ShareLinkPassword == "" {
 		//no redirect client
@@ -225,7 +225,7 @@ func (d *OnedriveSharelinkAPI) GetRedirectUrl() (err error) {
 	d.RedirectUrl = ""
 	if d.ShareLinkPassword == "" {
 		// set headers
-		header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36 Edg/90.0.818.51")
+		header.Set("User-Agent", base.UserAgent)
 		header.Set("accept-language", "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6")
 		// set req.Header to Header
 		req.Header = header

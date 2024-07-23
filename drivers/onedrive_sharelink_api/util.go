@@ -280,8 +280,8 @@ func (d *OnedriveSharelinkAPI) GetBaseUrl() error {
 		return err
 	}
 
-	// Regex pattern for "CurrentFolderSpItemUrl"
-	folderSpItemUrlPattern := regexp.MustCompile(`"CurrentFolderSpItemUrl"\s*:\s*"(.*?)"`)
+	// Regex pattern for ".driveUrl"
+	folderSpItemUrlPattern := regexp.MustCompile(`".driveUrl"\s*:\s*"(.*?)"`)
 
 	// Find first match and extract the URL using submatch
 	matches := folderSpItemUrlPattern.FindStringSubmatch(string(body))
@@ -295,10 +295,7 @@ func (d *OnedriveSharelinkAPI) GetBaseUrl() error {
 	if err != nil {
 		return err
 	}
-
-	// Trim down the URL to the base directory structure
-	basePath := strings.SplitN(url.Path, "/items", 2)[0]
-	d.BaseUrl = url.Scheme + "://" + url.Host + basePath
+	d.BaseUrl = url.Scheme + "://" + url.Host + url.Path
 
 	return nil
 }

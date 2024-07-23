@@ -17,6 +17,7 @@ import (
 	"golang.org/x/net/html"
 )
 
+// NewNoRedirectClient creates an HTTP client that doesn't follow redirects
 func NewNoRedirectCLient() *http.Client {
 	return &http.Client{
 		Timeout: time.Hour * 48,
@@ -24,13 +25,14 @@ func NewNoRedirectCLient() *http.Client {
 			Proxy:           http.ProxyFromEnvironment,
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: conf.Conf.TlsInsecureSkipVerify},
 		},
-		//no redirect
+		// Prevent following redirects
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}
 }
 
+// getCookiesWithPassword fetches cookies required for authenticated access using the provided password
 func getCookiesWithPassword(link, password string) (string, error) {
 	// Send GET request
 	resp, err := http.Get(link)
@@ -45,9 +47,10 @@ func getCookiesWithPassword(link, password string) (string, error) {
 		return "", err
 	}
 
-	// Find input fields by their IDs
+	// Initialize variables to store form data
 	var viewstate, eventvalidation, postAction string
 
+	// Recursive function to find input fields by their IDs
 	var findInputFields func(*html.Node)
 	findInputFields = func(n *html.Node) {
 		if n.Type == html.ElementNode && n.Data == "input" {
@@ -96,11 +99,12 @@ func getCookiesWithPassword(link, password string) (string, error) {
 			return http.ErrUseLastResponse
 		},
 	}
-	// Send the POST request,no redirect
+	// Send the POST request, preventing redirects
 	resp, err = client.PostForm(newURL, data)
 	if err != nil {
 		return "", err
 	}
+
 	// Extract the desired cookie value
 	cookie := resp.Cookies()
 	var fedAuthCookie string
@@ -116,6 +120,7 @@ func getCookiesWithPassword(link, password string) (string, error) {
 	return fmt.Sprintf("FedAuth=%s;", fedAuthCookie), nil
 }
 
+// getAttrValue retrieves the value of the specified attribute from an HTML node
 func getAttrValue(n *html.Node, key string) string {
 	for _, attr := range n.Attr {
 		if attr.Key == key {
@@ -125,47 +130,42 @@ func getAttrValue(n *html.Node, key string) string {
 	return ""
 }
 
+// getHeaders constructs and returns the necessary HTTP headers for accessing the OneDrive share link
 func (d *OnedriveSharelink) getHeaders() (http.Header, error) {
 	header := http.Header{}
 	header.Set("User-Agent", base.UserAgent)
 	header.Set("accept-language", "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6")
-	//save timestamp to d.HeaderTime
+
+	// Save current timestamp to d.HeaderTime
 	d.HeaderTime = time.Now().Unix()
+
 	if d.ShareLinkPassword == "" {
-		//no redirect client
+		// Create a no-redirect client
 		clientNoDirect := NewNoRedirectCLient()
-		// create a request
 		req, err := http.NewRequest("GET", d.ShareLinkURL, nil)
 		if err != nil {
 			return nil, err
 		}
-		// set headers
-		header.Set("User-Agent", base.UserAgent)
-		header.Set("accept-language", "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6")
-		// set req.Header to d.Header
+		// Set headers for the request
 		req.Header = header
-		// request the Sharelink
 		answerNoRedirect, err := clientNoDirect.Do(req)
 		if err != nil {
 			return nil, err
 		}
-		// get the location
 		redirectUrl := answerNoRedirect.Header.Get("Location")
 		log.Debugln("redirectUrl:", redirectUrl)
 		if redirectUrl == "" {
 			return nil, fmt.Errorf("password protected link. Please provide password")
 		}
 		header.Set("Cookie", answerNoRedirect.Header.Get("Set-Cookie"))
-		// set Referer to the redirectUrl
 		header.Set("Referer", redirectUrl)
-		// set authority to the netloc of the redirectUrl
-		//get the netloc
+
+		// Extract the host part of the redirect URL and set it as the authority
 		u, err := url.Parse(redirectUrl)
 		if err != nil {
 			return nil, err
 		}
 		header.Set("authority", u.Host)
-		// return the header
 		return header, nil
 	} else {
 		cookie, err := getCookiesWithPassword(d.ShareLinkURL, d.ShareLinkPassword)
@@ -173,38 +173,29 @@ func (d *OnedriveSharelink) getHeaders() (http.Header, error) {
 			return nil, err
 		}
 		header.Set("Cookie", cookie)
-		// set the referer
 		header.Set("Referer", d.ShareLinkURL)
-		// set the authority
 		header.Set("authority", strings.Split(strings.Split(d.ShareLinkURL, "//")[1], "/")[0])
-		// return the header
 		return header, nil
 	}
-
 }
-func (d *OnedriveSharelink) getFiles(path string) ([]Item, error) {
-	//no redirect client
-	clientNoDirect := NewNoRedirectCLient()
-	// create a request
-	req, err := http.NewRequest("GET", d.ShareLinkURL, nil)
 
+// getFiles retrieves the files from the OneDrive share link at the specified path
+func (d *OnedriveSharelink) getFiles(path string) ([]Item, error) {
+	clientNoDirect := NewNoRedirectCLient()
+	req, err := http.NewRequest("GET", d.ShareLinkURL, nil)
 	if err != nil {
 		return nil, err
 	}
 	header := req.Header
 	redirectUrl := ""
 	if d.ShareLinkPassword == "" {
-		// set headers
 		header.Set("User-Agent", base.UserAgent)
 		header.Set("accept-language", "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6")
-		// set req.Header to Header
 		req.Header = header
-		// request the Sharelink
 		answerNoRedirect, err := clientNoDirect.Do(req)
 		if err != nil {
 			return nil, err
 		}
-		// get the location
 		redirectUrl = answerNoRedirect.Header.Get("Location")
 	} else {
 		header = d.Headers
@@ -213,14 +204,14 @@ func (d *OnedriveSharelink) getFiles(path string) ([]Item, error) {
 		if err != nil {
 			return nil, err
 		}
-		// get the location
 		redirectUrl = answerNoRedirect.Header.Get("Location")
 	}
 	redirectSplitURL := strings.Split(redirectUrl, "/")
-	// init Headers
 	req.Header = d.Headers
 	downloadLinkPrefix := ""
 	rootFolderPre := ""
+
+	// Determine the appropriate URL and root folder based on whether the link is SharePoint
 	if d.IsSharepoint {
 		// update req url
 		req.URL, err = url.Parse(redirectUrl)
@@ -236,68 +227,60 @@ func (d *OnedriveSharelink) getFiles(path string) ([]Item, error) {
 			}
 			return d.getFiles(path)
 		}
-		// Use regex 'templateUrl":"(.*?)"' to search the templateUrl
+		defer answer.Body.Close()
 		re := regexp.MustCompile(`templateUrl":"(.*?)"`)
-		// get the body of the answer
 		body, err := io.ReadAll(answer.Body)
 		if err != nil {
 			return nil, err
 		}
-		// search in the answer
 		template := re.FindString(string(body))
-		// Throw the content before "templateUrl":"(included) away
 		template = template[strings.Index(template, "templateUrl\":\"")+len("templateUrl\":\""):]
-		// Throw the content after "?id="(included) away
 		template = template[:strings.Index(template, "?id=")]
-		// Throw the content after last '/'(included) away
 		template = template[:strings.LastIndex(template, "/")]
-		// add /download.aspx?UniqueId= to the templateUrl
 		downloadLinkPrefix = template + "/download.aspx?UniqueId="
-		// get params of redirectUrl
 		params, err := url.ParseQuery(redirectUrl[strings.Index(redirectUrl, "?")+1:])
 		if err != nil {
 			return nil, err
 		}
-		// get id
 		rootFolderPre = params.Get("id")
 	} else {
-		// Throw the content after last '/'(included) away of the redirectUrl
 		redirectUrlCut := redirectUrl[:strings.LastIndex(redirectUrl, "/")]
-		// add /download.aspx?UniqueId= to the redirectUrl
 		downloadLinkPrefix = redirectUrlCut + "/download.aspx?UniqueId="
-		// get params of redirectUrl
 		params, err := url.ParseQuery(redirectUrl[strings.Index(redirectUrl, "?")+1:])
 		if err != nil {
 			return nil, err
 		}
-		// get id
 		rootFolderPre = params.Get("id")
 	}
 	d.downloadLinkPrefix = downloadLinkPrefix
-	// url decode the rootFolderPre
 	rootFolder, err := url.QueryUnescape(rootFolderPre)
 	if err != nil {
 		return nil, err
 	}
 	log.Debugln("rootFolder:", rootFolder)
-	// Then we store ANYTHING before 'Documents'(included, or 'Shared Documents') into relativePath. In this case, it's /personal/admin_sakurapy_onmicrosoft_com/Documents'
-	// We url encode relativePath and replace _ with %5F and - with %2D store it as relativeUrl. The relativePath/redirectUrl will not be changed.
-	// If you need to access subfolder, you need to add the subfolder name after rootFolder, like /personal/admin_sakurapy_onmicrosoft_com/Documents/DMYZ/subfolder
-	// We url encode rootFolder and replace _ with %5F and - with %2D store it as rootFolderUrl.
+	// Extract the relative path up to and including "Documents"
 	relativePath := strings.Split(rootFolder, "Documents")[0] + "Documents"
+
+	// URL encode the relative path
 	relativeUrl := url.QueryEscape(relativePath)
-	//replace
+	// Replace underscores and hyphens in the encoded relative path
 	relativeUrl = strings.Replace(relativeUrl, "_", "%5F", -1)
 	relativeUrl = strings.Replace(relativeUrl, "-", "%2D", -1)
+
+	// If the path is not the root, append the path to the root folder
 	if path != "/" {
-		//add path to rootFolder
 		rootFolder = rootFolder + path
 	}
+
+	// URL encode the full root folder path
 	rootFolderUrl := url.QueryEscape(rootFolder)
-	//replace
+	// Replace underscores and hyphens in the encoded root folder URL
 	rootFolderUrl = strings.Replace(rootFolderUrl, "_", "%5F", -1)
 	rootFolderUrl = strings.Replace(rootFolderUrl, "-", "%2D", -1)
+
 	log.Debugln("relativePath:", relativePath, "relativeUrl:", relativeUrl, "rootFolder:", rootFolder, "rootFolderUrl:", rootFolderUrl)
+
+	// Construct the GraphQL query with the encoded paths
 	graphqlVar := fmt.Sprintf(`{"query":"query (\n        $listServerRelativeUrl: String!,$renderListDataAsStreamParameters: RenderListDataAsStreamParameters!,$renderListDataAsStreamQueryString: String!\n        )\n      {\n      \n      legacy {\n      \n      renderListDataAsStream(\n      listServerRelativeUrl: $listServerRelativeUrl,\n      parameters: $renderListDataAsStreamParameters,\n      queryString: $renderListDataAsStreamQueryString\n      )\n    }\n      \n      \n  perf {\n    executionTime\n    overheadTime\n    parsingTime\n    queryCount\n    validationTime\n    resolvers {\n      name\n      queryCount\n      resolveTime\n      waitTime\n    }\n  }\n    }","variables":{"listServerRelativeUrl":"%s","renderListDataAsStreamParameters":{"renderOptions":5707527,"allowMultipleValueFilterForTaxonomyFields":true,"addRequiredFields":true,"folderServerRelativeUrl":"%s"},"renderListDataAsStreamQueryString":"@a1=\'%s\'&RootFolder=%s&TryNewExperienceSingle=TRUE"}}`, relativePath, rootFolder, relativeUrl, rootFolderUrl)
 	tempHeader := make(http.Header)
 	for k, v := range d.Headers {
@@ -306,7 +289,6 @@ func (d *OnedriveSharelink) getFiles(path string) ([]Item, error) {
 	tempHeader["Content-Type"] = []string{"application/json;odata=verbose"}
 
 	client := &http.Client{}
-	// python: graphqlReq = req.post("/".join(redirectSplitURL[:-3])+"/_api/v2.1/graphql", data=graphqlVar.encode('utf-8'), headers=tempHeader)
 	postUrl := strings.Join(redirectSplitURL[:len(redirectSplitURL)-3], "/") + "/_api/v2.1/graphql"
 	req, err = http.NewRequest("POST", postUrl, strings.NewReader(graphqlVar))
 	if err != nil {
@@ -327,7 +309,6 @@ func (d *OnedriveSharelink) getFiles(path string) ([]Item, error) {
 	json.NewDecoder(resp.Body).Decode(&graphqlReq)
 	log.Debugln("graphqlReq:", graphqlReq)
 	filesData := graphqlReq.Data.Legacy.RenderListDataAsStream.ListData.Row
-	//if "NextHref" in graphqlReq["data"]["legacy"]["renderListDataAsStream"]["ListData"]:
 	if graphqlReq.Data.Legacy.RenderListDataAsStream.ListData.NextHref != "" {
 		nextHref := graphqlReq.Data.Legacy.RenderListDataAsStream.ListData.NextHref + "&@a1=REPLACEME&TryNewExperienceSingle=TRUE"
 		nextHref = strings.Replace(nextHref, "REPLACEME", "%27"+relativeUrl+"%27", -1)
@@ -341,7 +322,6 @@ func (d *OnedriveSharelink) getFiles(path string) ([]Item, error) {
 		renderListDataAsStreamVar = strings.Replace(renderListDataAsStreamVar, "REPLACEME", listViewXml, -1)
 
 		graphqlReqNEW := GraphQLNEWRequest{}
-		//python: graphqlReq = req.post("/".join(redirectSplitURL[:-3])+"/_api/web/GetListUsingPath(DecodedUrl=@a1)/RenderListDataAsStream"+nextHref, data=renderListDataAsStreamVar.encode('utf-8'), headers=tempHeader)
 		postUrl = strings.Join(redirectSplitURL[:len(redirectSplitURL)-3], "/") + "/_api/web/GetListUsingPath(DecodedUrl=@a1)/RenderListDataAsStream" + nextHref
 		req, _ = http.NewRequest("POST", postUrl, strings.NewReader(renderListDataAsStreamVar))
 		req.Header = tempHeader
@@ -355,12 +335,9 @@ func (d *OnedriveSharelink) getFiles(path string) ([]Item, error) {
 			return d.getFiles(path)
 		}
 		defer resp.Body.Close()
-		//clear graphqlReq
 		json.NewDecoder(resp.Body).Decode(&graphqlReqNEW)
 		for graphqlReqNEW.ListData.NextHref != "" {
-			//clear graphqlReqNEW
 			graphqlReqNEW = GraphQLNEWRequest{}
-			//python: graphqlReq = req.post("/".join(redirectSplitURL[:-3])+"/_api/web/GetListUsingPath(DecodedUrl=@a1)/RenderListDataAsStream"+nextHref, data=renderListDataAsStreamVar.encode('utf-8'), headers=tempHeader)
 			postUrl = strings.Join(redirectSplitURL[:len(redirectSplitURL)-3], "/") + "/_api/web/GetListUsingPath(DecodedUrl=@a1)/RenderListDataAsStream" + nextHref
 			req, _ = http.NewRequest("POST", postUrl, strings.NewReader(renderListDataAsStreamVar))
 			req.Header = tempHeader

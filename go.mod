@@ -6,7 +6,8 @@ require (
 	github.com/SheltonZhu/115driver v1.0.25
 	github.com/Xhofe/go-cache v0.0.0-20220723083548-714439c8af9a
 	github.com/Xhofe/rateg v0.0.0-20230728072201-251a4e1adad4
-	github.com/alist-org/gofakes3 v0.0.5
+	github.com/alist-org/gofakes3 v0.0.6
+	github.com/alist-org/times v0.0.0-20240721124318-c2e3da27cc69
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/aws/aws-sdk-go v1.54.19
@@ -20,7 +21,6 @@ require (
 	github.com/deckarep/golang-set/v2 v2.6.0
 	github.com/dhowden/tag v0.0.0-20240417053706-3d75831295e8
 	github.com/disintegration/imaging v1.6.2
-	github.com/djherbis/times v1.6.0
 	github.com/dlclark/regexp2 v1.11.2
 	github.com/dustinxie/ecc v0.0.0-20210511000915-959544187564
 	github.com/foxxorcat/mopan-sdk-go v0.1.6
@@ -67,7 +67,7 @@ require (
 	google.golang.org/appengine v1.6.8
 	gopkg.in/ldap.v3 v3.1.0
 	gorm.io/driver/mysql v1.5.7
-	gorm.io/driver/postgres v1.4.8
+	gorm.io/driver/postgres v1.5.9
 	gorm.io/driver/sqlite v1.5.6
 	gorm.io/gorm v1.25.11
 )
@@ -85,6 +85,7 @@ require (
 	github.com/cloudwego/iasm v0.2.0 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
 	github.com/ipfs/boxo v0.12.0 // indirect
+	github.com/jackc/puddle/v2 v2.2.1 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 )
 
@@ -148,7 +149,7 @@ require (
 	github.com/ipfs/go-cid v0.4.1
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
-	github.com/jackc/pgx/v5 v5.3.0 // indirect
+	github.com/jackc/pgx/v5 v5.5.5 // indirect
 	github.com/jaevor/go-nanoid v1.3.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect

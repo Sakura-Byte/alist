@@ -8,9 +8,7 @@ import (
 )
 
 type Addition struct {
-	// Usually one of two
 	driver.RootPath
-	// define other
 	ShareLinkURL       string `json:"url" required:"true"`
 	ShareLinkPassword  string `json:"password"`
 	IsSharepoint       bool

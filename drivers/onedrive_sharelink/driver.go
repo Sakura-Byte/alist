@@ -28,11 +28,13 @@ func (d *OnedriveSharelink) GetAddition() driver.Additional {
 }
 
 func (d *OnedriveSharelink) Init(ctx context.Context) error {
-	//init err
+	// Initialize error variable
 	var err error
-	// if there is "-my" in the url, it is NOT a sharepoint link
+
+	// If there is "-my" in the URL, it is NOT a SharePoint link
 	d.IsSharepoint = !strings.Contains(d.ShareLinkURL, "-my")
-	//init cron
+
+	// Initialize cron job to run every hour
 	d.cron = cron.NewCron(time.Hour * 1)
 	d.cron.Do(func() {
 		var err error
@@ -41,6 +43,8 @@ func (d *OnedriveSharelink) Init(ctx context.Context) error {
 			log.Errorf("%+v", err)
 		}
 	})
+
+	// Get initial headers
 	d.Headers, err = d.getHeaders()
 	if err != nil {
 		return err
@@ -59,27 +63,31 @@ func (d *OnedriveSharelink) List(ctx context.Context, dir model.Obj, args model.
 	if err != nil {
 		return nil, err
 	}
+
+	// Convert the slice of files to the required model.Obj format
 	return utils.SliceConvert(files, func(src Item) (model.Obj, error) {
 		return fileToObj(src), nil
 	})
 }
 
 func (d *OnedriveSharelink) Link(ctx context.Context, file model.Obj, args model.LinkArgs) (*model.Link, error) {
-	//get Id
+	// Get the unique ID of the file
 	uniqueId := file.GetID()
-	// cut the first char and the last char
+	// Cut the first char and the last char
 	uniqueId = uniqueId[1 : len(uniqueId)-1]
 	url := d.downloadLinkPrefix + uniqueId
 	header := d.Headers
-	// if d.HeaderTime(timestamp) is older than 30min, get new headers
+
+	// If the headers are older than 30 minutes, get new headers
 	if d.HeaderTime < time.Now().Unix()-1800 {
 		var err error
-		log.Debug("headers are older than 1 hour, get new headers")
+		log.Debug("headers are older than 30 minutes, get new headers")
 		header, err = d.getHeaders()
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	return &model.Link{
 		URL:    url,
 		Header: header,

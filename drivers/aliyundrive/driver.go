@@ -56,7 +56,6 @@ func (d *AliDrive) Init(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	d.DriveId = utils.Json.Get(res, "default_drive_id").ToString()
 	d.UserID = utils.Json.Get(res, "user_id").ToString()
 	d.cron = cron.NewCron(time.Hour * 2)
 	d.cron.Do(func() {
@@ -66,7 +65,8 @@ func (d *AliDrive) Init(ctx context.Context) error {
 		}
 	})
 	if global.Has(d.UserID) {
-		return nil
+		err = d.refreshDriveId(ctx)
+		return err
 	}
 	// init deviceID
 	deviceID := utils.HashData(utils.SHA256, []byte(d.UserID))
@@ -80,7 +80,8 @@ func (d *AliDrive) Init(ctx context.Context) error {
 	global.Store(d.UserID, &state)
 	// init signature
 	d.sign()
-	return nil
+	err = d.refreshDriveId(ctx)
+	return err
 }
 
 func (d *AliDrive) Drop(ctx context.Context) error {
@@ -106,18 +107,31 @@ func (d *AliDrive) Link(ctx context.Context, file model.Obj, args model.LinkArgs
 		"file_id":    file.GetID(),
 		"expire_sec": 14400,
 	}
-	res, err, _ := d.request("https://api.alipan.com/v2/file/get_download_url", http.MethodPost, func(req *resty.Request) {
-		req.SetBody(data)
-	}, nil)
+	res, err, _ := d.requestS("https://api.alipan.com/v2/file/get_download_url", http.MethodPost, data, nil)
 	if err != nil {
 		return nil, err
 	}
-	return &model.Link{
-		Header: http.Header{
-			"Referer": []string{"https://www.alipan.com/"},
-		},
-		URL: utils.Json.Get(res, "url").ToString(),
-	}, nil
+	//str1 := string(res)
+	//fmt.Println(str1)
+	encryptURL := utils.Json.Get(res, "encrypt_url").ToString()
+	if utils.Json.Get(res, "url").ToString() == "" {
+		// 从 Flask后端解密 URL
+		decryptURL, _ := d.decryptURL(encryptURL)
+		return &model.Link{
+			Header: http.Header{
+				"Referer": []string{"https://www.alipan.com/"},
+			},
+			URL: decryptURL,
+		}, nil
+	} else {
+		return &model.Link{
+			Header: http.Header{
+				"Referer": []string{"https://www.alipan.com/"},
+			},
+			URL: utils.Json.Get(res, "url").ToString(),
+		}, nil
+	}
+
 }
 
 func (d *AliDrive) MakeDir(ctx context.Context, parentDir model.Obj, dirName string) error {

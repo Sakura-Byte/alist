@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -94,13 +95,14 @@ func (d *AliDrive) request(url, method string, callback base.ReqCallback, resp i
 		}
 	}
 	req.SetHeaders(map[string]string{
-		"Authorization": "Bearer\t" + d.AccessToken,
-		"content-type":  "application/json",
+		//"Authorization": "Bearer\t" + d.AccessToken,
+		"Authorization": d.AccessToken,
+		"content-type":  "application/json; charset=UTF-8",
 		"origin":        "https://www.alipan.com",
 		"Referer":       "https://alipan.com/",
 		"X-Signature":   state.signature,
 		"x-request-id":  uuid.NewString(),
-		"X-Canary":      "client=Android,app=adrive,version=v6.0.1",
+		"X-Canary":      d.XCanary,
 		"X-Device-Id":   state.deviceID,
 	})
 	if callback != nil {
@@ -139,33 +141,42 @@ func (d *AliDrive) request(url, method string, callback base.ReqCallback, resp i
 	return res.Body(), nil, e
 }
 
-func (d *AliDrive) requestS(ctx context.Context, url, method string, data interface{}, headers map[string]string) ([]byte, error) {
+func (d *AliDrive) requestS(url, method string, data interface{}, headers map[string]string) ([]byte, error, RespErr) {
 	timestamp := fmt.Sprint(time.Now().UnixMilli())
 	nonce := uuid.NewString()
-
+	var e RespErr
 	signV2, err := d.getSign(timestamp, nonce)
 	if err != nil {
-		return nil, err
+		return nil, err, e
 	}
 
 	reqHeaders := map[string]string{
 		"x-signature-v2": signV2,
 		"x-nonce":        nonce,
 		"x-timestamp":    timestamp,
-		"User-Agent":     "AliApp(AYSD/6.0.1) com.alicloud.databox/38172215 Channel/36176427979800@rimet_android_6.0.1 language/zh-CN /Android Mobile/samsung samsung+SM-G9810",
+		"User-Agent":     d.UserAgent,
 	}
 
 	// Merge additional headers if provided
 	for k, v := range headers {
 		reqHeaders[k] = v
 	}
+	// 获取 x-mini-wua x-sgext x-sign x-umt x-bx-version
+	bJson, err := d.generateSecurityHeader(url)
+	if err != nil {
+		return nil, err, e
+	}
 
-	res, err, _ := d.request(url, method, func(req *resty.Request) {
+	for k, v := range bJson {
+		reqHeaders[k] = v.(string)
+	}
+
+	res, err, e := d.request(url, method, func(req *resty.Request) {
 		req.SetHeaders(reqHeaders)
 		req.SetBody(data)
 	}, nil)
 
-	return res, err
+	return res, err, e
 }
 
 func (d *AliDrive) getFiles(fileId string) ([]File, error) {
@@ -263,14 +274,29 @@ func (d *AliDrive) decryptURL(encryptURL string) (string, error) {
 	return string(res.Body()), nil
 }
 
+func (d *AliDrive) generateSecurityHeader(url string) (base.Json, error) {
+	req := base.RestyClient.R()
+	data := base.Json{
+		"url": url,
+	}
+	req.SetBody(data)
+	res, err := req.Execute(http.MethodPost, d.HookAddress+"/generateSecurityHeader")
+	if err != nil {
+		return nil, err
+	}
+	var result base.Json
+	err = json.Unmarshal(res.Body(), &result)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 func (d *AliDrive) refreshDriveId(ctx context.Context) error {
 	infoHeader := map[string]string{
 		"host": "user.alipan.com",
 	}
-	res, err := d.requestS(ctx, "https://bizapi.alipan.com/v2/user/get", http.MethodPost, nil, infoHeader)
-	if err != nil {
-		return err
-	}
+	res, err, _ := d.requestS("https://bizapi.alipan.com/v2/user/get", http.MethodPost, nil, infoHeader)
 	if err != nil {
 		return err
 	}

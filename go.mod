@@ -3,7 +3,7 @@ module github.com/alist-org/alist/v3
 go 1.22.4
 
 require (
-	github.com/SheltonZhu/115driver v1.0.26
+	github.com/SheltonZhu/115driver v1.0.27
 	github.com/Xhofe/go-cache v0.0.0-20240804043513-b1a71927bc21
 	github.com/Xhofe/rateg v0.0.0-20230728072201-251a4e1adad4
 	github.com/alist-org/gofakes3 v0.0.7
@@ -60,7 +60,7 @@ require (
 	github.com/zzzhr1990/go-common-entity v0.0.0-20221216044934-fd1c571e3a22
 	golang.org/x/crypto v0.26.0
 	golang.org/x/exp v0.0.0-20240808152545-0cdaa3abc0fa
-	golang.org/x/image v0.18.0
+	golang.org/x/image v0.19.0
 	golang.org/x/net v0.28.0
 	golang.org/x/oauth2 v0.22.0
 	golang.org/x/time v0.6.0

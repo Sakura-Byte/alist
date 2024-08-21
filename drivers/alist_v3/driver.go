@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"path"
 	"strings"
 
@@ -113,8 +114,17 @@ func (d *AListV3) Link(ctx context.Context, file model.Obj, args model.LinkArgs)
 	if err != nil {
 		return nil, err
 	}
+	linkUrl := resp.Data.RawURL
+	if d.CustomDownloadHost != "" {
+		linkUrlParts, err := url.Parse(linkUrl)
+		if err != nil {
+			return nil, err
+		}
+		linkUrlParts.Host = d.CustomDownloadHost
+		linkUrl = linkUrlParts.String()
+	}
 	return &model.Link{
-		URL: resp.Data.RawURL,
+		URL: linkUrl,
 	}, nil
 }
 

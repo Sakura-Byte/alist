@@ -3,8 +3,7 @@ package pikpak_share
 import (
 	"context"
 	"net/http"
-	"net/url"
-	"strings"
+	"regexp"
 	"time"
 
 	"github.com/alist-org/alist/v3/internal/op"
@@ -39,6 +38,7 @@ func (d *PikPakShare) Init(ctx context.Context) error {
 				d.Common.CaptchaToken = token
 				op.MustSaveDriverStorage(d)
 			},
+			LowLatencyAddr: "",
 		}
 	}
 
@@ -63,6 +63,21 @@ func (d *PikPakShare) Init(ctx context.Context) error {
 		d.PackageName = WebPackageName
 		d.Algorithms = WebAlgorithms
 		d.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36"
+	} else if d.Platform == "pc" {
+		d.ClientID = PCClientID
+		d.ClientSecret = PCClientSecret
+		d.ClientVersion = PCClientVersion
+		d.PackageName = PCPackageName
+		d.Algorithms = PCAlgorithms
+		d.UserAgent = "MainWindow Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) PikPak/2.5.6.4831 Chrome/100.0.4896.160 Electron/18.3.15 Safari/537.36"
+	}
+
+	if d.UseLowLatencyAddress && d.Addition.CustomLowLatencyAddress != "" {
+		d.Common.LowLatencyAddr = d.Addition.CustomLowLatencyAddress
+	} else if d.UseLowLatencyAddress {
+		d.Common.LowLatencyAddr = findLowestLatencyAddress(DlAddr)
+		d.Addition.CustomLowLatencyAddress = d.Common.LowLatencyAddr
+		op.MustSaveDriverStorage(d)
 	}
 
 	// 获取CaptchaToken
@@ -73,9 +88,6 @@ func (d *PikPakShare) Init(ctx context.Context) error {
 
 	if d.SharePwd != "" {
 		return d.getSharePassToken()
-	}
-	if d.CustomHost != "" {
-		d.CustomHost = strings.TrimSuffix(d.CustomHost, "/")
 	}
 	return nil
 }
@@ -118,18 +130,15 @@ func (d *PikPakShare) Link(ctx context.Context, file model.Obj, args model.LinkA
 		}
 	}
 
-	if d.CustomHost != "" {
-		parse, err := url.Parse(downloadUrl)
-		if err != nil {
-			return nil, err
-		}
-		//replace host
-		downloadUrl = strings.Replace(downloadUrl, "https://"+parse.Host, d.CustomHost, 1)
+	if d.UseLowLatencyAddress && d.Common.LowLatencyAddr != "" {
+		// 替换为加速链接
+		re := regexp.MustCompile(`https://[^/]+/download/`)
+		downloadUrl = re.ReplaceAllString(downloadUrl, "https://"+d.Common.LowLatencyAddr+"/download/")
 	}
-	link := model.Link{
+
+	return &model.Link{
 		URL: downloadUrl,
-	}
-	return &link, nil
+	}, nil
 }
 
 var _ driver.Driver = (*PikPakShare)(nil)

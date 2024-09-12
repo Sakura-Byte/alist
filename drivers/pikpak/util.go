@@ -30,21 +30,14 @@ import (
 // do others that not defined in Driver interface
 
 var AndroidAlgorithms = []string{
-	"Gez0T9ijiI9WCeTsKSg3SMlx",
-	"zQdbalsolyb1R/",
-	"ftOjr52zt51JD68C3s",
-	"yeOBMH0JkbQdEFNNwQ0RI9T3wU/v",
-	"BRJrQZiTQ65WtMvwO",
-	"je8fqxKPdQVJiy1DM6Bc9Nb1",
-	"niV",
-	"9hFCW2R1",
-	"sHKHpe2i96",
-	"p7c5E6AcXQ/IJUuAEC9W6",
-	"",
-	"aRv9hjc9P+Pbn+u3krN6",
-	"BzStcgE8qVdqjEH16l4",
-	"SqgeZvL5j9zoHP95xWHt",
-	"zVof5yaJkPe3VFpadPof",
+	"aDhgaSE3MsjROCmpmsWqP1sJdFJ",
+	"+oaVkqdd8MJuKT+uMr2AYKcd9tdWge3XPEPR2hcePUknd",
+	"u/sd2GgT2fTytRcKzGicHodhvIltMntA3xKw2SRv7S48OdnaQIS5mn",
+	"2WZiae2QuqTOxBKaaqCNHCW3olu2UImelkDzBn",
+	"/vJ3upic39lgmrkX855Qx",
+	"yNc9ruCVMV7pGV7XvFeuLMOcy1",
+	"4FPq8mT3JQ1jzcVxMVfwFftLQm33M7i",
+	"xozoy5e3Ea",
 }
 
 var WebAlgorithms = []string{
@@ -65,6 +58,19 @@ var WebAlgorithms = []string{
 	"NhXXU9rg4XXdzo7u5o",
 }
 
+var PCAlgorithms = []string{
+	"KHBJ07an7ROXDoK7Db",
+	"G6n399rSWkl7WcQmw5rpQInurc1DkLmLJqE",
+	"JZD1A3M4x+jBFN62hkr7VDhkkZxb9g3rWqRZqFAAb",
+	"fQnw/AmSlbbI91Ik15gpddGgyU7U",
+	"/Dv9JdPYSj3sHiWjouR95NTQff",
+	"yGx2zuTjbWENZqecNI+edrQgqmZKP",
+	"ljrbSzdHLwbqcRn",
+	"lSHAsqCkGDGxQqqwrVu",
+	"TsWXI81fD1",
+	"vk7hBjawK/rOSrSWajtbMk95nfgf3",
+}
+
 const (
 	OSSUserAgent               = "aliyun-sdk-android/2.9.13(Linux/Android 14/M2004j7ac;UKQ1.231108.001)"
 	OssSecurityTokenHeaderName = "X-OSS-Security-Token"
@@ -74,17 +80,65 @@ const (
 const (
 	AndroidClientID      = "YNxT9w7GMdWvEOKa"
 	AndroidClientSecret  = "dbw2OtmVEeuUvIptb1Coyg"
-	AndroidClientVersion = "1.47.1"
+	AndroidClientVersion = "1.48.3"
 	AndroidPackageName   = "com.pikcloud.pikpak"
-	AndroidSdkVersion    = "2.0.4.204000"
+	AndroidSdkVersion    = "2.0.4.204101"
 	WebClientID          = "YUMx5nI8ZU8Ap8pm"
 	WebClientSecret      = "dbw2OtmVEeuUvIptb1Coyg"
 	WebClientVersion     = "2.0.0"
 	WebPackageName       = "mypikpak.com"
 	WebSdkVersion        = "8.0.3"
+	PCClientID           = "YvtoWO6GNHiuCl7x"
+	PCClientSecret       = "1NIH5R1IEe2pAxZE3hv3uA"
+	PCClientVersion      = "undefined" // 2.5.6.4831
+	PCPackageName        = "mypikpak.com"
+	PCSdkVersion         = "8.0.3"
 )
 
+var DlAddr = []string{
+	"dl-a10b-0621.mypikpak.com",
+	"dl-a10b-0622.mypikpak.com",
+	"dl-a10b-0623.mypikpak.com",
+	"dl-a10b-0624.mypikpak.com",
+	"dl-a10b-0625.mypikpak.com",
+	"dl-a10b-0858.mypikpak.com",
+	"dl-a10b-0859.mypikpak.com",
+	"dl-a10b-0860.mypikpak.com",
+	"dl-a10b-0861.mypikpak.com",
+	"dl-a10b-0862.mypikpak.com",
+	"dl-a10b-0863.mypikpak.com",
+	"dl-a10b-0864.mypikpak.com",
+	"dl-a10b-0865.mypikpak.com",
+	"dl-a10b-0866.mypikpak.com",
+	"dl-a10b-0867.mypikpak.com",
+	"dl-a10b-0868.mypikpak.com",
+	"dl-a10b-0869.mypikpak.com",
+	"dl-a10b-0870.mypikpak.com",
+	"dl-a10b-0871.mypikpak.com",
+	"dl-a10b-0872.mypikpak.com",
+	"dl-a10b-0873.mypikpak.com",
+	"dl-a10b-0874.mypikpak.com",
+	"dl-a10b-0875.mypikpak.com",
+	"dl-a10b-0876.mypikpak.com",
+	"dl-a10b-0877.mypikpak.com",
+	"dl-a10b-0878.mypikpak.com",
+	"dl-a10b-0879.mypikpak.com",
+	"dl-a10b-0880.mypikpak.com",
+	"dl-a10b-0881.mypikpak.com",
+	"dl-a10b-0882.mypikpak.com",
+	"dl-a10b-0883.mypikpak.com",
+	"dl-a10b-0884.mypikpak.com",
+	"dl-a10b-0885.mypikpak.com",
+	"dl-a10b-0886.mypikpak.com",
+	"dl-a10b-0887.mypikpak.com",
+}
+
 func (d *PikPak) login() error {
+	// 检查用户名和密码是否为空
+	if d.Addition.Username == "" || d.Addition.Password == "" {
+		return errors.New("username or password is empty")
+	}
+
 	url := "https://user.mypikpak.com/v1/auth/signin"
 	// 使用 用户填写的 CaptchaToken —————— (验证后的captcha_token)
 	if d.GetCaptchaToken() == "" {
@@ -131,8 +185,13 @@ func (d *PikPak) refreshToken(refreshToken string) error {
 	}
 	if e.ErrorCode != 0 {
 		if e.ErrorCode == 4126 {
-			// refresh_token invalid, re-login
-			return d.login()
+			// 1. 未填写 username 或 password
+			if d.Addition.Username == "" || d.Addition.Password == "" {
+				return errors.New("refresh_token invalid, please re-provide refresh_token")
+			} else {
+				// refresh_token invalid, re-login
+				return d.login()
+			}
 		}
 		d.Status = e.Error()
 		op.MustSaveDriverStorage(d)
@@ -180,13 +239,15 @@ func (d *PikPak) request(url string, method string, callback base.ReqCallback, r
 		"X-Device-ID":     d.GetDeviceID(),
 		"X-Captcha-Token": d.GetCaptchaToken(),
 	})
-	if d.oauth2Token != nil {
+	if d.RefreshTokenMethod == "oauth2" && d.oauth2Token != nil {
 		// 使用oauth2 获取 access_token
 		token, err := d.oauth2Token.Token()
 		if err != nil {
 			return nil, err
 		}
 		req.SetAuthScheme(token.TokenType).SetAuthToken(token.AccessToken)
+	} else if d.AccessToken != "" {
+		req.SetHeader("Authorization", "Bearer "+d.AccessToken)
 	}
 
 	if callback != nil {
@@ -277,6 +338,7 @@ type Common struct {
 	UserAgent     string
 	// 验证码token刷新成功回调
 	RefreshCTokenCk func(token string)
+	LowLatencyAddr  string
 }
 
 func generateDeviceSign(deviceID, packageName string) string {
@@ -666,4 +728,47 @@ func OssOption(params *S3Params) []oss.Option {
 		oss.UserAgentHeader(OSSUserAgent),
 	}
 	return options
+}
+
+type AddressLatency struct {
+	Address string
+	Latency time.Duration
+}
+
+func checkLatency(address string, wg *sync.WaitGroup, ch chan<- AddressLatency) {
+	defer wg.Done()
+	start := time.Now()
+	resp, err := http.Get("https://" + address + "/generate_204")
+	if err != nil {
+		ch <- AddressLatency{Address: address, Latency: time.Hour} // Set high latency on error
+		return
+	}
+	defer resp.Body.Close()
+	latency := time.Since(start)
+	ch <- AddressLatency{Address: address, Latency: latency}
+}
+
+func findLowestLatencyAddress(addresses []string) string {
+	var wg sync.WaitGroup
+	ch := make(chan AddressLatency, len(addresses))
+
+	for _, address := range addresses {
+		wg.Add(1)
+		go checkLatency(address, &wg, ch)
+	}
+
+	wg.Wait()
+	close(ch)
+
+	var lowestLatencyAddress string
+	lowestLatency := time.Hour
+
+	for result := range ch {
+		if result.Latency < lowestLatency {
+			lowestLatency = result.Latency
+			lowestLatencyAddress = result.Address
+		}
+	}
+
+	return lowestLatencyAddress
 }

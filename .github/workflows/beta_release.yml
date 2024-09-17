@@ -98,21 +98,3 @@ jobs:
           files: build/compress/*
           prerelease: true
           tag_name: beta
-          
-  desktop:
-    needs:
-      - release
-    name: Beta Release Desktop
-    runs-on: ubuntu-latest
-    steps:
-      - uses: peter-evans/create-or-update-comment@v4
-        with:
-          issue-number: 69
-          body: |
-            /release-beta
-            - triggered by @${{ github.actor }}
-            - commit sha: ${{ github.sha }}
-            - view files: https://github.com/alist-org/alist/tree/${{ github.sha }}
-          reactions: 'rocket'
-          token: ${{ secrets.MY_TOKEN }}
-          repository: alist-org/desktop-release

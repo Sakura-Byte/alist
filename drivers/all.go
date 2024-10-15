@@ -23,6 +23,7 @@ import (
 	_ "github.com/alist-org/alist/v3/drivers/cloudreve_sharelink"
 	_ "github.com/alist-org/alist/v3/drivers/crypt"
 	_ "github.com/alist-org/alist/v3/drivers/dropbox"
+	_ "github.com/alist-org/alist/v3/drivers/febbox"
 	_ "github.com/alist-org/alist/v3/drivers/ftp"
 	_ "github.com/alist-org/alist/v3/drivers/goindex"
 	_ "github.com/alist-org/alist/v3/drivers/google_drive"

@@ -223,13 +223,29 @@ func (d *PikPak) initializeOAuth2Token(ctx context.Context, oauth2Config *oauth2
 func (d *PikPak) refreshTokenByOAuth2() error {
 	token, err := d.oauth2Token.Token()
 	if err != nil {
-		return err
+		// Check if the error is "invalid_grant"
+		if strings.Contains(err.Error(), "invalid_grant") {
+			// Clear all cached tokens
+			d.resetTokens()
+			// Attempt to re-login
+			if loginErr := d.login(); loginErr != nil {
+				return fmt.Errorf("failed to re-login after invalid_grant: %w", loginErr)
+			}
+			return nil // Re-login succeeded
+		}
+		return fmt.Errorf("failed to refresh token: %w", err)
 	}
+
+	// Update tokens and user ID
 	d.Status = "work"
 	d.RefreshToken = token.RefreshToken
 	d.AccessToken = token.AccessToken
-	// 获取用户ID
-	userID := token.Extra("sub").(string)
+
+	// Safely extract user ID
+	userID, ok := token.Extra("sub").(string)
+	if !ok || userID == "" {
+		return errors.New("failed to extract user ID from token")
+	}
 	d.Common.SetUserID(userID)
 	d.Addition.RefreshToken = d.RefreshToken
 	op.MustSaveDriverStorage(d)

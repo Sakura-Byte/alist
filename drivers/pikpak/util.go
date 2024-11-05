@@ -299,7 +299,7 @@ func (d *PikPak) request(url string, method string, callback base.ReqCallback, r
 	switch e.ErrorCode {
 	case 0:
 		return res.Body(), nil
-	case 4122, 4121, 16:
+	case 4122, 4121, 16, 500:
 		// Access token expired
 		if d.RefreshTokenMethod == "oauth2" {
 			if err1 := d.refreshTokenByOAuth2(); err1 != nil {

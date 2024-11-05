@@ -134,6 +134,14 @@ var DlAddr = []string{
 	"dl-a10b-0887.mypikpak.net",
 }
 
+func (d *PikPak) resetTokens() {
+	d.RefreshToken = ""
+	d.AccessToken = ""
+	d.oauth2Token = nil
+	d.Common.CaptchaToken = ""
+	op.MustSaveDriverStorage(d)
+}
+
 func (d *PikPak) login() error {
 	// 检查用户名和密码是否为空
 	if d.Addition.Username == "" || d.Addition.Password == "" {
@@ -185,14 +193,10 @@ func (d *PikPak) refreshToken(refreshToken string) error {
 		return err
 	}
 	if e.ErrorCode != 0 {
-		if e.ErrorCode == 4126 {
-			// 1. 未填写 username 或 password
-			if d.Addition.Username == "" || d.Addition.Password == "" {
-				return errors.New("refresh_token invalid, please re-provide refresh_token")
-			} else {
-				// refresh_token invalid, re-login
-				return d.login()
-			}
+		if e.ErrorCode == 4126 || strings.Contains(e.ErrorDescription, "invalid_grant") {
+			// Reset tokens and re-login
+			d.resetTokens()
+			return d.login()
 		}
 		d.Status = e.Error()
 		op.MustSaveDriverStorage(d)
@@ -235,13 +239,13 @@ func (d *PikPak) refreshTokenByOAuth2() error {
 func (d *PikPak) request(url string, method string, callback base.ReqCallback, resp interface{}) ([]byte, error) {
 	req := base.RestyClient.R()
 	req.SetHeaders(map[string]string{
-		//"Authorization":   "Bearer " + d.AccessToken,
 		"User-Agent":      d.GetUserAgent(),
 		"X-Device-ID":     d.GetDeviceID(),
 		"X-Captcha-Token": d.GetCaptchaToken(),
 	})
+
 	if d.RefreshTokenMethod == "oauth2" && d.oauth2Token != nil {
-		// 使用oauth2 获取 access_token
+		// Use OAuth2 to get access token
 		token, err := d.oauth2Token.Token()
 		if err != nil {
 			return nil, err
@@ -264,11 +268,23 @@ func (d *PikPak) request(url string, method string, callback base.ReqCallback, r
 		return nil, err
 	}
 
+	// Check for "invalid_grant" in error description
+	if strings.Contains(e.ErrorDescription, "invalid_grant") {
+		// Reset cached tokens
+		d.resetTokens()
+		// Re-login to obtain new tokens
+		if err := d.login(); err != nil {
+			return nil, err
+		}
+		// Retry the original request
+		return d.request(url, method, callback, resp)
+	}
+
 	switch e.ErrorCode {
 	case 0:
 		return res.Body(), nil
 	case 4122, 4121, 16:
-		// access_token 过期
+		// Access token expired
 		if d.RefreshTokenMethod == "oauth2" {
 			if err1 := d.refreshTokenByOAuth2(); err1 != nil {
 				return nil, err1
@@ -278,14 +294,15 @@ func (d *PikPak) request(url string, method string, callback base.ReqCallback, r
 				return nil, err1
 			}
 		}
-
+		// Retry the original request after refreshing token
 		return d.request(url, method, callback, resp)
-	case 9: // 验证码token过期
+	case 9: // Captcha token expired
 		if err = d.RefreshCaptchaTokenAtLogin(GetAction(method, url), d.GetUserID()); err != nil {
 			return nil, err
 		}
+		// Retry the original request after refreshing captcha token
 		return d.request(url, method, callback, resp)
-	case 10: // 操作频繁
+	case 10: // Too many operations
 		return nil, errors.New(e.ErrorDescription)
 	default:
 		return nil, errors.New(e.Error())

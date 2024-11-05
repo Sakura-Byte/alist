@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/alist-org/alist/v3/drivers/base"
 	"github.com/alist-org/alist/v3/internal/driver"
@@ -28,7 +27,6 @@ type PikPak struct {
 	RefreshToken string
 	AccessToken  string
 	oauth2Token  oauth2.TokenSource
-	mu           sync.Mutex // Add a mutex for thread safety
 }
 
 func (d *PikPak) Config() driver.Config {

@@ -134,24 +134,14 @@ var DlAddr = []string{
 	"dl-a10b-0887.mypikpak.net",
 }
 
-// ClearTokens resets all cached authentication tokens.
-func (d *PikPak) ClearTokens() {
-	d.RefreshToken = ""
-	d.AccessToken = ""
-	d.oauth2Token = nil
-	d.Addition.RefreshToken = ""
-	d.Common.SetCaptchaToken("")
-	op.MustSaveDriverStorage(d)
-}
-
 func (d *PikPak) login() error {
-	// Validate username and password
+	// 检查用户名和密码是否为空
 	if d.Addition.Username == "" || d.Addition.Password == "" {
 		return errors.New("username or password is empty")
 	}
 
 	url := "https://user.mypikpak.net/v1/auth/signin"
-	// Refresh CaptchaToken if not available
+	// 使用 用户填写的 CaptchaToken —————— (验证后的captcha_token)
 	if d.GetCaptchaToken() == "" {
 		if err := d.RefreshCaptchaTokenInLogin(GetAction(http.MethodPost, url), d.Username); err != nil {
 			return err
@@ -159,50 +149,23 @@ func (d *PikPak) login() error {
 	}
 
 	var e ErrResp
-	res, err := base.RestyClient.SetRetryCount(1).R().
-		SetError(&e).
-		SetBody(base.Json{
-			"captcha_token": d.GetCaptchaToken(),
-			"client_id":     d.ClientID,
-			"client_secret": d.ClientSecret,
-			"username":      d.Username,
-			"password":      d.Password,
-		}).
-		SetQueryParam("client_id", d.ClientID).
-		Post(url)
+	res, err := base.RestyClient.SetRetryCount(1).R().SetError(&e).SetBody(base.Json{
+		"captcha_token": d.GetCaptchaToken(),
+		"client_id":     d.ClientID,
+		"client_secret": d.ClientSecret,
+		"username":      d.Username,
+		"password":      d.Password,
+	}).SetQueryParam("client_id", d.ClientID).Post(url)
 	if err != nil {
-		return fmt.Errorf("login request failed: %w", err)
+		return err
 	}
 	if e.ErrorCode != 0 {
-		return fmt.Errorf("login error: %s", e.Error())
+		return &e
 	}
-
 	data := res.Body()
 	d.RefreshToken = jsoniter.Get(data, "refresh_token").ToString()
 	d.AccessToken = jsoniter.Get(data, "access_token").ToString()
-	userID := jsoniter.Get(data, "sub").ToString()
-	if userID == "" {
-		return errors.New("failed to retrieve user ID from login response")
-	}
-	d.Common.SetUserID(userID)
-
-	// If using OAuth2, initialize the token source
-	if d.RefreshTokenMethod == "oauth2" {
-		oauth2Config := &oauth2.Config{
-			ClientID:     d.ClientID,
-			ClientSecret: d.ClientSecret,
-			Endpoint: oauth2.Endpoint{
-				AuthURL:   "https://user.mypikpak.net/v1/auth/signin",
-				TokenURL:  "https://user.mypikpak.net/v1/auth/token",
-				AuthStyle: oauth2.AuthStyleInParams,
-			},
-		}
-		d.initializeOAuth2Token(context.Background(), oauth2Config, d.RefreshToken)
-	}
-
-	// Persist the new tokens
-	d.Addition.RefreshToken = d.RefreshToken
-	op.MustSaveDriverStorage(d)
+	d.Common.SetUserID(jsoniter.Get(data, "sub").ToString())
 	return nil
 }
 
@@ -256,29 +219,13 @@ func (d *PikPak) initializeOAuth2Token(ctx context.Context, oauth2Config *oauth2
 func (d *PikPak) refreshTokenByOAuth2() error {
 	token, err := d.oauth2Token.Token()
 	if err != nil {
-		// Check if the error is "invalid_grant"
-		if strings.Contains(err.Error(), "invalid_grant") {
-			// Clear all cached tokens
-			d.ClearTokens()
-			// Attempt to re-login
-			if loginErr := d.login(); loginErr != nil {
-				return fmt.Errorf("failed to re-login after invalid_grant: %w", loginErr)
-			}
-			return nil // Re-login succeeded
-		}
-		return fmt.Errorf("failed to refresh token: %w", err)
+		return err
 	}
-
-	// Update tokens and user ID
 	d.Status = "work"
 	d.RefreshToken = token.RefreshToken
 	d.AccessToken = token.AccessToken
-
-	// Safely extract user ID
-	userID, ok := token.Extra("sub").(string)
-	if !ok || userID == "" {
-		return errors.New("failed to extract user ID from token")
-	}
+	// 获取用户ID
+	userID := token.Extra("sub").(string)
 	d.Common.SetUserID(userID)
 	d.Addition.RefreshToken = d.RefreshToken
 	op.MustSaveDriverStorage(d)
@@ -288,15 +235,16 @@ func (d *PikPak) refreshTokenByOAuth2() error {
 func (d *PikPak) request(url string, method string, callback base.ReqCallback, resp interface{}) ([]byte, error) {
 	req := base.RestyClient.R()
 	req.SetHeaders(map[string]string{
+		//"Authorization":   "Bearer " + d.AccessToken,
 		"User-Agent":      d.GetUserAgent(),
 		"X-Device-ID":     d.GetDeviceID(),
 		"X-Captcha-Token": d.GetCaptchaToken(),
 	})
 	if d.RefreshTokenMethod == "oauth2" && d.oauth2Token != nil {
-		// Use OAuth2 to get access_token
+		// 使用oauth2 获取 access_token
 		token, err := d.oauth2Token.Token()
 		if err != nil {
-			return nil, fmt.Errorf("failed to retrieve OAuth2 token: %w", err)
+			return nil, err
 		}
 		req.SetAuthScheme(token.TokenType).SetAuthToken(token.AccessToken)
 	} else if d.AccessToken != "" {
@@ -313,35 +261,34 @@ func (d *PikPak) request(url string, method string, callback base.ReqCallback, r
 	req.SetError(&e)
 	res, err := req.Execute(method, url)
 	if err != nil {
-		return nil, fmt.Errorf("request execution failed: %w", err)
+		return nil, err
 	}
 
 	switch e.ErrorCode {
 	case 0:
 		return res.Body(), nil
 	case 4122, 4121, 16:
-		// Access token expired
+		// access_token 过期
 		if d.RefreshTokenMethod == "oauth2" {
 			if err1 := d.refreshTokenByOAuth2(); err1 != nil {
-				return nil, fmt.Errorf("failed to refresh token via OAuth2: %w", err1)
+				return nil, err1
 			}
 		} else {
 			if err1 := d.refreshToken(d.RefreshToken); err1 != nil {
-				return nil, fmt.Errorf("failed to refresh token via HTTP: %w", err1)
+				return nil, err1
 			}
 		}
 
-		// Retry the original request after refreshing the token
 		return d.request(url, method, callback, resp)
-	case 9: // CaptchaToken expired
+	case 9: // 验证码token过期
 		if err = d.RefreshCaptchaTokenAtLogin(GetAction(method, url), d.GetUserID()); err != nil {
-			return nil, fmt.Errorf("failed to refresh CaptchaToken: %w", err)
+			return nil, err
 		}
 		return d.request(url, method, callback, resp)
-	case 10: // Too frequent operations
-		return nil, fmt.Errorf("operation too frequent: %s", e.ErrorDescription)
+	case 10: // 操作频繁
+		return nil, errors.New(e.ErrorDescription)
 	default:
-		return nil, fmt.Errorf("API error: %s", e.Error())
+		return nil, errors.New(e.Error())
 	}
 }
 

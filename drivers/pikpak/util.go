@@ -178,6 +178,9 @@ func (d *PikPak) login() error {
 }
 
 func (d *PikPak) refreshToken(refreshToken string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	url := "https://user.mypikpak.net/v1/auth/token"
 	var e ErrResp
 	res, err := base.RestyClient.SetRetryCount(1).R().SetError(&e).
@@ -213,6 +216,9 @@ func (d *PikPak) refreshToken(refreshToken string) error {
 }
 
 func (d *PikPak) initializeOAuth2Token(ctx context.Context, oauth2Config *oauth2.Config, refreshToken string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	d.oauth2Token = oauth2.ReuseTokenSource(nil, utils.TokenSource(func() (*oauth2.Token, error) {
 		return oauth2Config.TokenSource(ctx, &oauth2.Token{
 			RefreshToken: refreshToken,
@@ -221,6 +227,9 @@ func (d *PikPak) initializeOAuth2Token(ctx context.Context, oauth2Config *oauth2
 }
 
 func (d *PikPak) refreshTokenByOAuth2() error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	token, err := d.oauth2Token.Token()
 	if err != nil {
 		// Check if the error is "invalid_grant"
@@ -253,6 +262,9 @@ func (d *PikPak) refreshTokenByOAuth2() error {
 }
 
 func (d *PikPak) request(url string, method string, callback base.ReqCallback, resp interface{}) ([]byte, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	req := base.RestyClient.R()
 	req.SetHeaders(map[string]string{
 		"User-Agent":      d.GetUserAgent(),

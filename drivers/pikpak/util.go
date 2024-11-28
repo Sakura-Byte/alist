@@ -264,7 +264,17 @@ func (d *PikPak) request(url string, method string, callback base.ReqCallback, r
 		// Use OAuth2 to get access token
 		token, err := d.oauth2Token.Token()
 		if err != nil {
-			return nil, err
+			// Check if the error is "invalid_grant"
+			if strings.Contains(err.Error(), "invalid_grant") {
+				// Clear all cached tokens
+				d.resetTokens()
+				// Attempt to re-login
+				if loginErr := d.login(); loginErr != nil {
+					return nil, fmt.Errorf("failed to re-login after invalid_grant: %w", loginErr)
+				}
+				return d.request(url, method, callback, resp)
+			}
+			return nil, fmt.Errorf("failed to refresh token: %w", err)
 		}
 		req.SetAuthScheme(token.TokenType).SetAuthToken(token.AccessToken)
 	} else if d.AccessToken != "" {
@@ -281,19 +291,17 @@ func (d *PikPak) request(url string, method string, callback base.ReqCallback, r
 	req.SetError(&e)
 	res, err := req.Execute(method, url)
 	if err != nil {
-		return nil, err
-	}
-
-	// Check for "invalid_grant" in error description
-	if strings.Contains(e.ErrorDescription, "invalid_grant") {
-		// Reset cached tokens
-		d.resetTokens()
-		// Re-login to obtain new tokens
-		if err := d.login(); err != nil {
-			return nil, err
+		// Check if the error is "invalid_grant"
+		if strings.Contains(err.Error(), "invalid_grant") {
+			// Clear all cached tokens
+			d.resetTokens()
+			// Attempt to re-login
+			if loginErr := d.login(); loginErr != nil {
+				return nil, fmt.Errorf("failed to re-login after invalid_grant: %w", loginErr)
+			}
+			return d.request(url, method, callback, resp)
 		}
-		// Retry the original request
-		return d.request(url, method, callback, resp)
+		return nil, err
 	}
 
 	switch e.ErrorCode {

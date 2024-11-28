@@ -382,6 +382,7 @@ type Common struct {
 	UserAgent     string
 	// 验证码token刷新成功回调
 	RefreshCTokenCk func(token string)
+	LowLatencyAddr  string
 }
 
 func generateDeviceSign(deviceID, packageName string) string {

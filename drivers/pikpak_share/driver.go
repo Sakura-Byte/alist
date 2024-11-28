@@ -3,7 +3,6 @@ package pikpak_share
 import (
 	"context"
 	"net/http"
-	"regexp"
 	"time"
 
 	"github.com/alist-org/alist/v3/internal/op"
@@ -38,7 +37,6 @@ func (d *PikPakShare) Init(ctx context.Context) error {
 				d.Common.CaptchaToken = token
 				op.MustSaveDriverStorage(d)
 			},
-			LowLatencyAddr: "",
 		}
 	}
 
@@ -70,14 +68,6 @@ func (d *PikPakShare) Init(ctx context.Context) error {
 		d.PackageName = PCPackageName
 		d.Algorithms = PCAlgorithms
 		d.UserAgent = "MainWindow Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) PikPak/2.5.6.4831 Chrome/100.0.4896.160 Electron/18.3.15 Safari/537.36"
-	}
-
-	if d.UseLowLatencyAddress && d.Addition.CustomLowLatencyAddress != "" {
-		d.Common.LowLatencyAddr = d.Addition.CustomLowLatencyAddress
-	} else if d.UseLowLatencyAddress {
-		d.Common.LowLatencyAddr = findLowestLatencyAddress(DlAddr)
-		d.Addition.CustomLowLatencyAddress = d.Common.LowLatencyAddr
-		op.MustSaveDriverStorage(d)
 	}
 
 	// 获取CaptchaToken
@@ -128,12 +118,6 @@ func (d *PikPakShare) Link(ctx context.Context, file model.Obj, args model.LinkA
 		} else {
 			downloadUrl = resp.FileInfo.Medias[0].Link.Url
 		}
-	}
-
-	if d.UseLowLatencyAddress && d.Common.LowLatencyAddr != "" {
-		// 替换为加速链接
-		re := regexp.MustCompile(`https://[^/]+/download/`)
-		downloadUrl = re.ReplaceAllString(downloadUrl, "https://"+d.Common.LowLatencyAddr+"/download/")
 	}
 
 	return &model.Link{

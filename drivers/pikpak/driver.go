@@ -9,6 +9,10 @@ import (
 	"strconv"
 	"strings"
 
+	"net/http"
+	"strconv"
+	"strings"
+
 	"github.com/alist-org/alist/v3/drivers/base"
 	"github.com/alist-org/alist/v3/internal/driver"
 	"github.com/alist-org/alist/v3/internal/model"

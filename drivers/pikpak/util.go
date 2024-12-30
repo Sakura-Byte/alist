@@ -2,7 +2,6 @@ package pikpak
 
 import (
 	"bytes"
-	"context"
 	"crypto/md5"
 	"crypto/sha1"
 	"encoding/hex"
@@ -22,13 +21,10 @@ import (
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
-	"golang.org/x/oauth2"
 
 	"github.com/alist-org/alist/v3/drivers/base"
 	"github.com/go-resty/resty/v2"
 )
-
-// do others that not defined in Driver interface
 
 var AndroidAlgorithms = []string{
 	"7xOq4Z8s",
@@ -139,7 +135,6 @@ var DlAddr = []string{
 func (d *PikPak) resetTokens() {
 	d.RefreshToken = ""
 	d.AccessToken = ""
-	d.oauth2Token = nil
 	d.Common.CaptchaToken = ""
 	op.MustSaveDriverStorage(d)
 }
@@ -214,46 +209,6 @@ func (d *PikPak) refreshToken(refreshToken string) error {
 	return nil
 }
 
-func (d *PikPak) initializeOAuth2Token(ctx context.Context, oauth2Config *oauth2.Config, refreshToken string) {
-	d.oauth2Token = oauth2.ReuseTokenSource(nil, utils.TokenSource(func() (*oauth2.Token, error) {
-		return oauth2Config.TokenSource(ctx, &oauth2.Token{
-			RefreshToken: refreshToken,
-		}).Token()
-	}))
-}
-
-func (d *PikPak) refreshTokenByOAuth2() error {
-	token, err := d.oauth2Token.Token()
-	if err != nil {
-		// Check if the error is "invalid_grant"
-		if strings.Contains(err.Error(), "invalid_grant") {
-			// Clear all cached tokens
-			d.resetTokens()
-			// Attempt to re-login
-			if loginErr := d.login(); loginErr != nil {
-				return fmt.Errorf("failed to re-login after invalid_grant: %w", loginErr)
-			}
-			return nil // Re-login succeeded
-		}
-		return fmt.Errorf("failed to refresh token: %w", err)
-	}
-
-	// Update tokens and user ID
-	d.Status = "work"
-	d.RefreshToken = token.RefreshToken
-	d.AccessToken = token.AccessToken
-
-	// Safely extract user ID
-	userID, ok := token.Extra("sub").(string)
-	if !ok || userID == "" {
-		return errors.New("failed to extract user ID from token")
-	}
-	d.Common.SetUserID(userID)
-	d.Addition.RefreshToken = d.RefreshToken
-	op.MustSaveDriverStorage(d)
-	return nil
-}
-
 func (d *PikPak) request(url string, method string, callback base.ReqCallback, resp interface{}) ([]byte, error) {
 	req := base.RestyClient.R()
 	req.SetHeaders(map[string]string{
@@ -261,25 +216,7 @@ func (d *PikPak) request(url string, method string, callback base.ReqCallback, r
 		"X-Device-ID":     d.GetDeviceID(),
 		"X-Captcha-Token": d.GetCaptchaToken(),
 	})
-
-	if d.RefreshTokenMethod == "oauth2" && d.oauth2Token != nil {
-		// Use OAuth2 to get access token
-		token, err := d.oauth2Token.Token()
-		if err != nil {
-			// Check if the error is "invalid_grant"
-			if strings.Contains(err.Error(), "invalid_grant") {
-				// Clear all cached tokens
-				d.resetTokens()
-				// Attempt to re-login
-				if loginErr := d.login(); loginErr != nil {
-					return nil, fmt.Errorf("failed to re-login after invalid_grant: %w", loginErr)
-				}
-				return d.request(url, method, callback, resp)
-			}
-			return nil, fmt.Errorf("failed to refresh token: %w", err)
-		}
-		req.SetAuthScheme(token.TokenType).SetAuthToken(token.AccessToken)
-	} else if d.AccessToken != "" {
+	if d.AccessToken != "" {
 		req.SetHeader("Authorization", "Bearer "+d.AccessToken)
 	}
 
@@ -310,15 +247,9 @@ func (d *PikPak) request(url string, method string, callback base.ReqCallback, r
 	case 0:
 		return res.Body(), nil
 	case 4122, 4121, 16, 500:
-		// Access token expired
-		if d.RefreshTokenMethod == "oauth2" {
-			if err1 := d.refreshTokenByOAuth2(); err1 != nil {
-				return nil, err1
-			}
-		} else {
-			if err1 := d.refreshToken(d.RefreshToken); err1 != nil {
-				return nil, err1
-			}
+		// access_token 过期
+		if err1 := d.refreshToken(d.RefreshToken); err1 != nil {
+			return nil, err1
 		}
 		// Retry the original request after refreshing token
 		return d.request(url, method, callback, resp)

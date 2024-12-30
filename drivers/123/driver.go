@@ -6,12 +6,13 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"golang.org/x/time/rate"
 	"io"
 	"net/http"
 	"net/url"
 	"sync"
 	"time"
+
+	"golang.org/x/time/rate"
 
 	"github.com/alist-org/alist/v3/drivers/base"
 	"github.com/alist-org/alist/v3/internal/driver"
@@ -66,6 +67,19 @@ func (d *Pan123) Link(ctx context.Context, file model.Obj, args model.LinkArgs) 
 	if f, ok := file.(File); ok {
 		//var resp DownResp
 		var headers map[string]string
+		if d.UseAppDownload {
+			// Overwrite the user-agent in header
+			headers = map[string]string{
+				"origin":        "https://www.123pan.com",
+				"referer":       "https://www.123pan.com/",
+				"authorization": "Bearer " + d.AccessToken,
+				"user-agent":    "123pan/v2.4.0(Android_7.1.2;Xiaomi)",
+				"platform":      "android",
+				"app-version":   "61",
+				"x-app-version": "2.4.0",
+			}
+		}
+
 		if !utils.IsLocalIPAddr(args.IP) {
 			headers = map[string]string{
 				//"X-Real-IP":       "1.1.1.1",
@@ -82,7 +96,7 @@ func (d *Pan123) Link(ctx context.Context, file model.Obj, args model.LinkArgs) 
 			"type":      f.Type,
 		}
 		resp, err := d.request(DownloadInfo, http.MethodPost, func(req *resty.Request) {
-			
+
 			req.SetBody(data).SetHeaders(headers)
 		}, nil)
 		if err != nil {

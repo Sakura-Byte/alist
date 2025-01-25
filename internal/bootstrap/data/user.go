@@ -26,12 +26,13 @@ func initUser() {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			salt := random.String(16)
 			admin = &model.User{
-				Username: "admin",
-				Salt:     salt,
-				PwdHash:  model.TwoHashPwd(adminPassword, salt),
-				Role:     model.ADMIN,
-				BasePath: "/",
-				Authn:    "[]",
+				Username:   "admin",
+				Salt:       salt,
+				PwdHash:    model.TwoHashPwd(adminPassword, salt),
+				Role:       model.ADMIN,
+				BasePath:   "/",
+				Authn:      "[]",
+				Permission: 0xFF, // 0(can see hidden) - 7(can remove)
 			}
 			if err := op.CreateUser(admin); err != nil {
 				panic(err)
@@ -61,41 +62,6 @@ func initUser() {
 			}
 		} else {
 			utils.Log.Fatalf("[init user] Failed to get guest user: %v", err)
-		}
-	}
-	hashPwdForOldVersion()
-	updateAuthnForOldVersion()
-}
-
-func hashPwdForOldVersion() {
-	users, _, err := op.GetUsers(1, -1)
-	if err != nil {
-		utils.Log.Fatalf("[hash pwd for old version] failed get users: %v", err)
-	}
-	for i := range users {
-		user := users[i]
-		if user.PwdHash == "" {
-			user.SetPassword(user.Password)
-			user.Password = ""
-			if err := db.UpdateUser(&user); err != nil {
-				utils.Log.Fatalf("[hash pwd for old version] failed update user: %v", err)
-			}
-		}
-	}
-}
-
-func updateAuthnForOldVersion() {
-	users, _, err := op.GetUsers(1, -1)
-	if err != nil {
-		utils.Log.Fatalf("[update authn for old version] failed get users: %v", err)
-	}
-	for i := range users {
-		user := users[i]
-		if user.Authn == "" {
-			user.Authn = "[]"
-			if err := db.UpdateUser(&user); err != nil {
-				utils.Log.Fatalf("[update authn for old version] failed update user: %v", err)
-			}
 		}
 	}
 }

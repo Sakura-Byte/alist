@@ -26,6 +26,7 @@ type Yun139 struct {
 	Addition
 	cron    *cron.Cron
 	Account string
+	ref     *Yun139
 }
 
 func (d *Yun139) Config() driver.Config {
@@ -37,61 +38,77 @@ func (d *Yun139) GetAddition() driver.Additional {
 }
 
 func (d *Yun139) Init(ctx context.Context) error {
-	if d.Authorization == "" {
-		return fmt.Errorf("authorization is empty")
-	}
-	d.cron = cron.NewCron(time.Hour * 24 * 7)
-	d.cron.Do(func() {
+	if d.ref == nil {
+		if d.Authorization == "" {
+			return fmt.Errorf("authorization is empty")
+		}
 		err := d.refreshToken()
 		if err != nil {
-			log.Errorf("%+v", err)
+			return err
 		}
-	})
+		d.cron = cron.NewCron(time.Hour * 12)
+		d.cron.Do(func() {
+			err := d.refreshToken()
+			if err != nil {
+				log.Errorf("%+v", err)
+			}
+		})
+	}
 	switch d.Addition.Type {
 	case MetaPersonalNew:
 		if len(d.Addition.RootFolderID) == 0 {
 			d.RootFolderID = "/"
 		}
-		return nil
 	case MetaPersonal:
 		if len(d.Addition.RootFolderID) == 0 {
 			d.RootFolderID = "root"
 		}
-		fallthrough
 	case MetaGroup:
 		if len(d.Addition.RootFolderID) == 0 {
 			d.RootFolderID = d.CloudID
 		}
-		fallthrough
 	case MetaFamily:
-		decode, err := base64.StdEncoding.DecodeString(d.Authorization)
-		if err != nil {
-			return err
-		}
-		decodeStr := string(decode)
-		splits := strings.Split(decodeStr, ":")
-		if len(splits) < 2 {
-			return fmt.Errorf("authorization is invalid, splits < 2")
-		}
-		d.Account = splits[1]
-		_, err = d.post("/orchestration/personalCloud/user/v1.0/qryUserExternInfo", base.Json{
-			"qryUserExternInfoReq": base.Json{
-				"commonAccountInfo": base.Json{
-					"account":     d.Account,
-					"accountType": 1,
-				},
-			},
-		}, nil)
-		return err
 	default:
 		return errs.NotImplement
 	}
+	if d.ref != nil {
+		return nil
+	}
+	decode, err := base64.StdEncoding.DecodeString(d.Authorization)
+	if err != nil {
+		return err
+	}
+	decodeStr := string(decode)
+	splits := strings.Split(decodeStr, ":")
+	if len(splits) < 2 {
+		return fmt.Errorf("authorization is invalid, splits < 2")
+	}
+	d.Account = splits[1]
+	_, err = d.post("/orchestration/personalCloud/user/v1.0/qryUserExternInfo", base.Json{
+		"qryUserExternInfoReq": base.Json{
+			"commonAccountInfo": base.Json{
+				"account":     d.getAccount(),
+				"accountType": 1,
+			},
+		},
+	}, nil)
+	return err
+}
+
+func (d *Yun139) InitReference(storage driver.Driver) error {
+	refStorage, ok := storage.(*Yun139)
+	if ok {
+		d.ref = refStorage
+		return nil
+	}
+	return errs.NotSupport
 }
 
 func (d *Yun139) Drop(ctx context.Context) error {
 	if d.cron != nil {
 		d.cron.Stop()
 	}
+	d.ref = nil
 	return nil
 }
 
@@ -150,7 +167,7 @@ func (d *Yun139) MakeDir(ctx context.Context, parentDir model.Obj, dirName strin
 				"parentCatalogID": parentDir.GetID(),
 				"newCatalogName":  dirName,
 				"commonAccountInfo": base.Json{
-					"account":     d.Account,
+					"account":     d.getAccount(),
 					"accountType": 1,
 				},
 			},
@@ -161,7 +178,7 @@ func (d *Yun139) MakeDir(ctx context.Context, parentDir model.Obj, dirName strin
 		data := base.Json{
 			"cloudID": d.CloudID,
 			"commonAccountInfo": base.Json{
-				"account":     d.Account,
+				"account":     d.getAccount(),
 				"accountType": 1,
 			},
 			"docLibName": dirName,
@@ -173,7 +190,7 @@ func (d *Yun139) MakeDir(ctx context.Context, parentDir model.Obj, dirName strin
 		data := base.Json{
 			"catalogName": dirName,
 			"commonAccountInfo": base.Json{
-				"account":     d.Account,
+				"account":     d.getAccount(),
 				"accountType": 1,
 			},
 			"groupID":      d.CloudID,
@@ -219,7 +236,7 @@ func (d *Yun139) Move(ctx context.Context, srcObj, dstDir model.Obj) (model.Obj,
 			"contentList": contentList,
 			"catalogList": catalogList,
 			"commonAccountInfo": base.Json{
-				"account":     d.Account,
+				"account":     d.getAccount(),
 				"accountType": 1,
 			},
 		}
@@ -247,7 +264,7 @@ func (d *Yun139) Move(ctx context.Context, srcObj, dstDir model.Obj) (model.Obj,
 					"newCatalogID":    dstDir.GetID(),
 				},
 				"commonAccountInfo": base.Json{
-					"account":     d.Account,
+					"account":     d.getAccount(),
 					"accountType": 1,
 				},
 			},
@@ -282,7 +299,7 @@ func (d *Yun139) Rename(ctx context.Context, srcObj model.Obj, newName string) e
 				"catalogID":   srcObj.GetID(),
 				"catalogName": newName,
 				"commonAccountInfo": base.Json{
-					"account":     d.Account,
+					"account":     d.getAccount(),
 					"accountType": 1,
 				},
 			}
@@ -292,7 +309,7 @@ func (d *Yun139) Rename(ctx context.Context, srcObj model.Obj, newName string) e
 				"contentID":   srcObj.GetID(),
 				"contentName": newName,
 				"commonAccountInfo": base.Json{
-					"account":     d.Account,
+					"account":     d.getAccount(),
 					"accountType": 1,
 				},
 			}
@@ -309,7 +326,7 @@ func (d *Yun139) Rename(ctx context.Context, srcObj model.Obj, newName string) e
 				"modifyCatalogName": newName,
 				"path":              srcObj.GetPath(),
 				"commonAccountInfo": base.Json{
-					"account":     d.Account,
+					"account":     d.getAccount(),
 					"accountType": 1,
 				},
 			}
@@ -321,7 +338,7 @@ func (d *Yun139) Rename(ctx context.Context, srcObj model.Obj, newName string) e
 				"contentName": newName,
 				"path":        srcObj.GetPath(),
 				"commonAccountInfo": base.Json{
-					"account":     d.Account,
+					"account":     d.getAccount(),
 					"accountType": 1,
 				},
 			}
@@ -338,7 +355,7 @@ func (d *Yun139) Rename(ctx context.Context, srcObj model.Obj, newName string) e
 			// 	"catalogID":   srcObj.GetID(),
 			// 	"catalogName": newName,
 			// 	"commonAccountInfo": base.Json{
-			// 		"account":     d.Account,
+			// 		"account":     d.getAccount(),
 			// 		"accountType": 1,
 			// 	},
 			// 	"path": srcObj.GetPath(),
@@ -350,7 +367,7 @@ func (d *Yun139) Rename(ctx context.Context, srcObj model.Obj, newName string) e
 				"contentID":   srcObj.GetID(),
 				"contentName": newName,
 				"commonAccountInfo": base.Json{
-					"account":     d.Account,
+					"account":     d.getAccount(),
 					"accountType": 1,
 				},
 				"path": srcObj.GetPath(),
@@ -393,7 +410,7 @@ func (d *Yun139) Copy(ctx context.Context, srcObj, dstDir model.Obj) error {
 					"newCatalogID":    dstDir.GetID(),
 				},
 				"commonAccountInfo": base.Json{
-					"account":     d.Account,
+					"account":     d.getAccount(),
 					"accountType": 1,
 				},
 			},
@@ -430,7 +447,7 @@ func (d *Yun139) Remove(ctx context.Context, obj model.Obj) error {
 			"contentList": contentList,
 			"catalogList": catalogList,
 			"commonAccountInfo": base.Json{
-				"account":     d.Account,
+				"account":     d.getAccount(),
 				"accountType": 1,
 			},
 		}
@@ -457,7 +474,7 @@ func (d *Yun139) Remove(ctx context.Context, obj model.Obj) error {
 					"catalogInfoList": catalogInfoList,
 				},
 				"commonAccountInfo": base.Json{
-					"account":     d.Account,
+					"account":     d.getAccount(),
 					"accountType": 1,
 				},
 			},
@@ -468,7 +485,7 @@ func (d *Yun139) Remove(ctx context.Context, obj model.Obj) error {
 				"catalogList": catalogInfoList,
 				"contentList": contentInfoList,
 				"commonAccountInfo": base.Json{
-					"account":     d.Account,
+					"account":     d.getAccount(),
 					"accountType": 1,
 				},
 				"sourceCloudID":     d.CloudID,
@@ -598,7 +615,7 @@ func (d *Yun139) Put(ctx context.Context, dstDir model.Obj, stream model.FileStr
 					"uploadId":  resp.Data.UploadId,
 					"partInfos": batchPartInfos,
 					"commonAccountInfo": base.Json{
-						"account":     d.Account,
+						"account":     d.getAccount(),
 						"accountType": 1,
 					},
 				}
@@ -735,7 +752,7 @@ func (d *Yun139) Put(ctx context.Context, dstDir model.Obj, stream model.FileStr
 			"parentCatalogID": dstDir.GetID(),
 			"newCatalogName":  "",
 			"commonAccountInfo": base.Json{
-				"account":     d.Account,
+				"account":     d.getAccount(),
 				"accountType": 1,
 			},
 		}

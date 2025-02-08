@@ -10,7 +10,6 @@ import (
 	"github.com/alist-org/alist/v3/internal/stream"
 	"github.com/alist-org/alist/v3/server/common"
 	"github.com/pkg/errors"
-	"io"
 	fs2 "io/fs"
 	"net/http"
 	"os"
@@ -19,10 +18,10 @@ import (
 
 type FileDownloadProxy struct {
 	ftpserver.FileTransfer
-	reader io.ReadCloser
+	reader stream.SStreamReadAtSeeker
 }
 
-func OpenDownload(ctx context.Context, reqPath string) (*FileDownloadProxy, error) {
+func OpenDownload(ctx context.Context, reqPath string, offset int64) (*FileDownloadProxy, error) {
 	user := ctx.Value("user").(*model.User)
 	meta, err := op.GetNearestMeta(reqPath)
 	if err != nil {
@@ -52,7 +51,12 @@ func OpenDownload(ctx context.Context, reqPath string) (*FileDownloadProxy, erro
 	if err != nil {
 		return nil, err
 	}
-	return &FileDownloadProxy{reader: ss}, nil
+	reader, err := stream.NewReadAtSeeker(ss, offset)
+	if err != nil {
+		_ = ss.Close()
+		return nil, err
+	}
+	return &FileDownloadProxy{reader: reader}, nil
 }
 
 func (f *FileDownloadProxy) Read(p []byte) (n int, err error) {
@@ -64,7 +68,7 @@ func (f *FileDownloadProxy) Write(p []byte) (n int, err error) {
 }
 
 func (f *FileDownloadProxy) Seek(offset int64, whence int) (int64, error) {
-	return 0, errs.NotSupport
+	return f.reader.Seek(offset, whence)
 }
 
 func (f *FileDownloadProxy) Close() error {

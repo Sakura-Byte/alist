@@ -3,12 +3,14 @@ package alist_v3
 import (
 	"context"
 	"fmt"
-	"github.com/alist-org/alist/v3/internal/stream"
 	"io"
 	"net/http"
 	"net/url"
 	"path"
 	"strings"
+
+	"github.com/alist-org/alist/v3/internal/stream"
+	"golang.org/x/time/rate"
 
 	"github.com/alist-org/alist/v3/drivers/base"
 	"github.com/alist-org/alist/v3/internal/driver"
@@ -22,6 +24,7 @@ import (
 type AListV3 struct {
 	model.Storage
 	Addition
+	limiter *rate.Limiter
 }
 
 func (d *AListV3) Config() driver.Config {

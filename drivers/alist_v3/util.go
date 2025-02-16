@@ -1,6 +1,7 @@
 package alist_v3
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -33,6 +34,13 @@ func (d *AListV3) login() error {
 }
 
 func (d *AListV3) request(api, method string, callback base.ReqCallback, retry ...bool) ([]byte, error) {
+	// Wait for permission from the rate limiter.
+	if d.limiter != nil {
+		if err := d.limiter.Wait(context.Background()); err != nil {
+			return nil, fmt.Errorf("rate limiter error: %w", err)
+		}
+	}
+
 	url := d.Address + "/api" + api
 	req := base.RestyClient.R()
 	req.SetHeader("Authorization", d.Token)
@@ -58,7 +66,7 @@ func (d *AListV3) request(api, method string, callback base.ReqCallback, retry .
 					return res.Body(), nil
 				}
 			}
-			return nil, fmt.Errorf("request failed,code: %d, message: %s", code, utils.Json.Get(res.Body(), "message").ToString())
+			return nil, fmt.Errorf("request failed, code: %d, message: %s", code, utils.Json.Get(res.Body(), "message").ToString())
 		} else if (code == 401 || code == 403) && !utils.IsBool(retry...) {
 			err = d.login()
 			if err != nil {
@@ -66,7 +74,7 @@ func (d *AListV3) request(api, method string, callback base.ReqCallback, retry .
 			}
 			return d.request(api, method, callback, true)
 		}
-		return nil, fmt.Errorf("request failed,code: %d, message: %s", code, utils.Json.Get(res.Body(), "message").ToString())
+		return nil, fmt.Errorf("request failed, code: %d, message: %s", code, utils.Json.Get(res.Body(), "message").ToString())
 	}
 
 	return res.Body(), nil

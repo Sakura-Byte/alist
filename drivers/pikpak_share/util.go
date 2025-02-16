@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/alist-org/alist/v3/pkg/utils"
@@ -76,47 +75,9 @@ const (
 	PCClientID           = "YvtoWO6GNHiuCl7x"
 	PCClientSecret       = "1NIH5R1IEe2pAxZE3hv3uA"
 	PCClientVersion      = "undefined" // 2.5.6.4831
-	PCPackageName        = "mypikpak.net"
+	PCPackageName        = "mypikpak.com"
 	PCSdkVersion         = "8.0.3"
 )
-
-var DlAddr = []string{
-	"dl-a10b-0621.mypikpak.net",
-	"dl-a10b-0622.mypikpak.net",
-	"dl-a10b-0623.mypikpak.net",
-	"dl-a10b-0624.mypikpak.net",
-	"dl-a10b-0625.mypikpak.net",
-	"dl-a10b-0858.mypikpak.net",
-	"dl-a10b-0859.mypikpak.net",
-	"dl-a10b-0860.mypikpak.net",
-	"dl-a10b-0861.mypikpak.net",
-	"dl-a10b-0862.mypikpak.net",
-	"dl-a10b-0863.mypikpak.net",
-	"dl-a10b-0864.mypikpak.net",
-	"dl-a10b-0865.mypikpak.net",
-	"dl-a10b-0866.mypikpak.net",
-	"dl-a10b-0867.mypikpak.net",
-	"dl-a10b-0868.mypikpak.net",
-	"dl-a10b-0869.mypikpak.net",
-	"dl-a10b-0870.mypikpak.net",
-	"dl-a10b-0871.mypikpak.net",
-	"dl-a10b-0872.mypikpak.net",
-	"dl-a10b-0873.mypikpak.net",
-	"dl-a10b-0874.mypikpak.net",
-	"dl-a10b-0875.mypikpak.net",
-	"dl-a10b-0876.mypikpak.net",
-	"dl-a10b-0877.mypikpak.net",
-	"dl-a10b-0878.mypikpak.net",
-	"dl-a10b-0879.mypikpak.net",
-	"dl-a10b-0880.mypikpak.net",
-	"dl-a10b-0881.mypikpak.net",
-	"dl-a10b-0882.mypikpak.net",
-	"dl-a10b-0883.mypikpak.net",
-	"dl-a10b-0884.mypikpak.net",
-	"dl-a10b-0885.mypikpak.net",
-	"dl-a10b-0886.mypikpak.net",
-	"dl-a10b-0887.mypikpak.net",
-}
 
 func (d *PikPakShare) request(url string, method string, callback base.ReqCallback, resp interface{}) ([]byte, error) {
 	req := base.RestyClient.R()
@@ -230,7 +191,6 @@ type Common struct {
 	UserAgent     string
 	// 验证码token刷新成功回调
 	RefreshCTokenCk func(token string)
-	LowLatencyAddr  string
 }
 
 func (c *Common) SetUserAgent(userAgent string) {
@@ -369,47 +329,4 @@ func (d *PikPakShare) refreshCaptchaToken(action string, metas map[string]string
 	}
 	d.Common.SetCaptchaToken(resp.CaptchaToken)
 	return nil
-}
-
-type AddressLatency struct {
-	Address string
-	Latency time.Duration
-}
-
-func checkLatency(address string, wg *sync.WaitGroup, ch chan<- AddressLatency) {
-	defer wg.Done()
-	start := time.Now()
-	resp, err := http.Get("https://" + address + "/generate_204")
-	if err != nil {
-		ch <- AddressLatency{Address: address, Latency: time.Hour} // Set high latency on error
-		return
-	}
-	defer resp.Body.Close()
-	latency := time.Since(start)
-	ch <- AddressLatency{Address: address, Latency: latency}
-}
-
-func findLowestLatencyAddress(addresses []string) string {
-	var wg sync.WaitGroup
-	ch := make(chan AddressLatency, len(addresses))
-
-	for _, address := range addresses {
-		wg.Add(1)
-		go checkLatency(address, &wg, ch)
-	}
-
-	wg.Wait()
-	close(ch)
-
-	var lowestLatencyAddress string
-	lowestLatency := time.Hour
-
-	for result := range ch {
-		if result.Latency < lowestLatency {
-			lowestLatency = result.Latency
-			lowestLatencyAddress = result.Address
-		}
-	}
-
-	return lowestLatencyAddress
 }

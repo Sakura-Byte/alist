@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -36,6 +35,7 @@ func (d *PikPak) GetAddition() driver.Additional {
 }
 
 func (d *PikPak) Init(ctx context.Context) (err error) {
+
 	if d.Common == nil {
 		d.Common = &Common{
 			client:       base.NewRestyClient(),
@@ -47,7 +47,6 @@ func (d *PikPak) Init(ctx context.Context) (err error) {
 				d.Common.CaptchaToken = token
 				op.MustSaveDriverStorage(d)
 			},
-			LowLatencyAddr: "",
 		}
 	}
 
@@ -111,14 +110,6 @@ func (d *PikPak) Init(ctx context.Context) (err error) {
 	d.Addition.RefreshToken = d.RefreshToken
 	op.MustSaveDriverStorage(d)
 
-	if d.UseLowLatencyAddress && d.Addition.CustomLowLatencyAddress != "" {
-		d.Common.LowLatencyAddr = d.Addition.CustomLowLatencyAddress
-	} else if d.UseLowLatencyAddress {
-		d.Common.LowLatencyAddr = findLowestLatencyAddress(DlAddr)
-		d.Addition.CustomLowLatencyAddress = d.Common.LowLatencyAddr
-		op.MustSaveDriverStorage(d)
-	}
-
 	return nil
 }
 
@@ -159,12 +150,6 @@ func (d *PikPak) Link(ctx context.Context, file model.Obj, args model.LinkArgs) 
 	if !d.DisableMediaLink && len(resp.Medias) > 0 && resp.Medias[0].Link.Url != "" {
 		log.Debugln("use media link")
 		url = resp.Medias[0].Link.Url
-	}
-
-	if d.UseLowLatencyAddress && d.Common.LowLatencyAddr != "" {
-		// 替换为加速链接
-		re := regexp.MustCompile(`https://[^/]+/download/`)
-		url = re.ReplaceAllString(url, "https://"+d.Common.LowLatencyAddr+"/download/")
 	}
 
 	return &model.Link{

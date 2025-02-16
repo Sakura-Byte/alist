@@ -92,54 +92,9 @@ const (
 	PCClientID           = "YvtoWO6GNHiuCl7x"
 	PCClientSecret       = "1NIH5R1IEe2pAxZE3hv3uA"
 	PCClientVersion      = "undefined" // 2.5.6.4831
-	PCPackageName        = "mypikpak.net"
+	PCPackageName        = "mypikpak.com"
 	PCSdkVersion         = "8.0.3"
 )
-
-var DlAddr = []string{
-	"dl-a10b-0621.mypikpak.net",
-	"dl-a10b-0622.mypikpak.net",
-	"dl-a10b-0623.mypikpak.net",
-	"dl-a10b-0624.mypikpak.net",
-	"dl-a10b-0625.mypikpak.net",
-	"dl-a10b-0858.mypikpak.net",
-	"dl-a10b-0859.mypikpak.net",
-	"dl-a10b-0860.mypikpak.net",
-	"dl-a10b-0861.mypikpak.net",
-	"dl-a10b-0862.mypikpak.net",
-	"dl-a10b-0863.mypikpak.net",
-	"dl-a10b-0864.mypikpak.net",
-	"dl-a10b-0865.mypikpak.net",
-	"dl-a10b-0866.mypikpak.net",
-	"dl-a10b-0867.mypikpak.net",
-	"dl-a10b-0868.mypikpak.net",
-	"dl-a10b-0869.mypikpak.net",
-	"dl-a10b-0870.mypikpak.net",
-	"dl-a10b-0871.mypikpak.net",
-	"dl-a10b-0872.mypikpak.net",
-	"dl-a10b-0873.mypikpak.net",
-	"dl-a10b-0874.mypikpak.net",
-	"dl-a10b-0875.mypikpak.net",
-	"dl-a10b-0876.mypikpak.net",
-	"dl-a10b-0877.mypikpak.net",
-	"dl-a10b-0878.mypikpak.net",
-	"dl-a10b-0879.mypikpak.net",
-	"dl-a10b-0880.mypikpak.net",
-	"dl-a10b-0881.mypikpak.net",
-	"dl-a10b-0882.mypikpak.net",
-	"dl-a10b-0883.mypikpak.net",
-	"dl-a10b-0884.mypikpak.net",
-	"dl-a10b-0885.mypikpak.net",
-	"dl-a10b-0886.mypikpak.net",
-	"dl-a10b-0887.mypikpak.net",
-}
-
-func (d *PikPak) resetTokens() {
-	d.RefreshToken = ""
-	d.AccessToken = ""
-	d.Common.CaptchaToken = ""
-	op.MustSaveDriverStorage(d)
-}
 
 func (d *PikPak) login() error {
 	// 检查用户名和密码是否为空
@@ -192,10 +147,14 @@ func (d *PikPak) refreshToken(refreshToken string) error {
 		return err
 	}
 	if e.ErrorCode != 0 {
-		if e.ErrorCode == 4126 || strings.Contains(e.ErrorDescription, "invalid_grant") {
-			// Reset tokens and re-login
-			d.resetTokens()
-			return d.login()
+		if e.ErrorCode == 4126 {
+			// 1. 未填写 username 或 password
+			if d.Addition.Username == "" || d.Addition.Password == "" {
+				return errors.New("refresh_token invalid, please re-provide refresh_token")
+			} else {
+				// refresh_token invalid, re-login
+				return d.login()
+			}
 		}
 		d.Status = e.Error()
 		op.MustSaveDriverStorage(d)
@@ -214,6 +173,7 @@ func (d *PikPak) refreshToken(refreshToken string) error {
 func (d *PikPak) request(url string, method string, callback base.ReqCallback, resp interface{}) ([]byte, error) {
 	req := base.RestyClient.R()
 	req.SetHeaders(map[string]string{
+		//"Authorization":   "Bearer " + d.AccessToken,
 		"User-Agent":      d.GetUserAgent(),
 		"X-Device-ID":     d.GetDeviceID(),
 		"X-Captcha-Token": d.GetCaptchaToken(),
@@ -232,36 +192,24 @@ func (d *PikPak) request(url string, method string, callback base.ReqCallback, r
 	req.SetError(&e)
 	res, err := req.Execute(method, url)
 	if err != nil {
-		// Check if the error is "invalid_grant"
-		if strings.Contains(err.Error(), "invalid_grant") {
-			// Clear all cached tokens
-			d.resetTokens()
-			// Attempt to re-login
-			if loginErr := d.login(); loginErr != nil {
-				return nil, fmt.Errorf("failed to re-login after invalid_grant: %w", loginErr)
-			}
-			return d.request(url, method, callback, resp)
-		}
 		return nil, err
 	}
 
 	switch e.ErrorCode {
 	case 0:
 		return res.Body(), nil
-	case 4122, 4121, 16, 500:
+	case 4122, 4121, 16:
 		// access_token 过期
 		if err1 := d.refreshToken(d.RefreshToken); err1 != nil {
 			return nil, err1
 		}
-		// Retry the original request after refreshing token
 		return d.request(url, method, callback, resp)
-	case 9: // Captcha token expired
+	case 9: // 验证码token过期
 		if err = d.RefreshCaptchaTokenAtLogin(GetAction(method, url), d.GetUserID()); err != nil {
 			return nil, err
 		}
-		// Retry the original request after refreshing captcha token
 		return d.request(url, method, callback, resp)
-	case 10: // Too many operations
+	case 10: // 操作频繁
 		return nil, errors.New(e.ErrorDescription)
 	default:
 		return nil, errors.New(e.Error())
@@ -315,7 +263,6 @@ type Common struct {
 	UserAgent     string
 	// 验证码token刷新成功回调
 	RefreshCTokenCk func(token string)
-	LowLatencyAddr  string
 }
 
 func generateDeviceSign(deviceID, packageName string) string {
@@ -714,47 +661,4 @@ func OssOption(params *S3Params) []oss.Option {
 		oss.UserAgentHeader(OSSUserAgent),
 	}
 	return options
-}
-
-type AddressLatency struct {
-	Address string
-	Latency time.Duration
-}
-
-func checkLatency(address string, wg *sync.WaitGroup, ch chan<- AddressLatency) {
-	defer wg.Done()
-	start := time.Now()
-	resp, err := http.Get("https://" + address + "/generate_204")
-	if err != nil {
-		ch <- AddressLatency{Address: address, Latency: time.Hour} // Set high latency on error
-		return
-	}
-	defer resp.Body.Close()
-	latency := time.Since(start)
-	ch <- AddressLatency{Address: address, Latency: latency}
-}
-
-func findLowestLatencyAddress(addresses []string) string {
-	var wg sync.WaitGroup
-	ch := make(chan AddressLatency, len(addresses))
-
-	for _, address := range addresses {
-		wg.Add(1)
-		go checkLatency(address, &wg, ch)
-	}
-
-	wg.Wait()
-	close(ch)
-
-	var lowestLatencyAddress string
-	lowestLatency := time.Hour
-
-	for result := range ch {
-		if result.Latency < lowestLatency {
-			lowestLatency = result.Latency
-			lowestLatencyAddress = result.Address
-		}
-	}
-
-	return lowestLatencyAddress
 }

@@ -379,20 +379,57 @@ func (d *OnedriveSharelinkAPI) GetFile(path string) (*File, error) {
 }
 
 func (d *OnedriveSharelinkAPI) upSmall(ctx context.Context, dstDir model.Obj, stream model.FileStreamer) error {
-	url := d.GetMetaUrl(false, stdpath.Join(dstDir.GetPath(), stream.GetName())) + "/content"
-	data, err := io.ReadAll(stream)
+	filepath := stdpath.Join(dstDir.GetPath(), stream.GetName())
+	// 1. upload new file
+	// ApiDoc: https://learn.microsoft.com/en-us/onedrive/developer/rest-api/api/driveitem_put_content?view=odsp-graph-online
+	url := d.GetMetaUrl(false, filepath) + "/content"
+	_, err := d.Request(url, http.MethodPut, func(req *resty.Request) {
+		req.SetBody(driver.NewLimitedUploadStream(ctx, stream)).SetContext(ctx)
+	}, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("onedrive: Failed to upload new file(path=%v): %w", filepath, err)
 	}
-	_, err = d.Request(url, http.MethodPut, func(req *resty.Request) {
-		req.SetBody(data).SetContext(ctx)
+
+	// 2. update metadata
+	err = d.updateMetadata(ctx, stream, filepath)
+	if err != nil {
+		return fmt.Errorf("onedrive: Failed to update file(path=%v) metadata: %w", filepath, err)
+	}
+	return nil
+}
+
+func (d *OnedriveSharelinkAPI) updateMetadata(ctx context.Context, stream model.FileStreamer, filepath string) error {
+	url := d.GetMetaUrl(false, filepath)
+	metadata := toAPIMetadata(stream)
+	// ApiDoc: https://learn.microsoft.com/en-us/onedrive/developer/rest-api/api/driveitem_update?view=odsp-graph-online
+	_, err := d.Request(url, http.MethodPatch, func(req *resty.Request) {
+		req.SetBody(metadata).SetContext(ctx)
 	}, nil)
 	return err
 }
 
+func toAPIMetadata(stream model.FileStreamer) Metadata {
+	metadata := Metadata{
+		FileSystemInfo: &FileSystemInfoFacet{},
+	}
+	if !stream.ModTime().IsZero() {
+		metadata.FileSystemInfo.LastModifiedDateTime = stream.ModTime()
+	}
+	if !stream.CreateTime().IsZero() {
+		metadata.FileSystemInfo.CreatedDateTime = stream.CreateTime()
+	}
+	if stream.CreateTime().IsZero() && !stream.ModTime().IsZero() {
+		metadata.FileSystemInfo.CreatedDateTime = stream.CreateTime()
+	}
+	return metadata
+}
+
 func (d *OnedriveSharelinkAPI) upBig(ctx context.Context, dstDir model.Obj, stream model.FileStreamer, up driver.UpdateProgress) error {
 	url := d.GetMetaUrl(false, stdpath.Join(dstDir.GetPath(), stream.GetName())) + "/createUploadSession"
-	res, err := d.Request(url, http.MethodPost, nil, nil)
+	metadata := map[string]interface{}{"item": toAPIMetadata(stream)}
+	res, err := d.Request(url, http.MethodPost, func(req *resty.Request) {
+		req.SetBody(metadata).SetContext(ctx)
+	}, nil)
 	if err != nil {
 		return err
 	}
@@ -415,7 +452,7 @@ func (d *OnedriveSharelinkAPI) upBig(ctx context.Context, dstDir model.Obj, stre
 		if err != nil {
 			return err
 		}
-		req, err := http.NewRequest("PUT", uploadUrl, bytes.NewBuffer(byteData))
+		req, err := http.NewRequest("PUT", uploadUrl, driver.NewLimitedUploadStream(ctx, bytes.NewBuffer(byteData)))
 		if err != nil {
 			return err
 		}

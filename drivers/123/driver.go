@@ -12,8 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/alist-org/alist/v3/internal/stream"
-
 	"golang.org/x/time/rate"
 
 	"github.com/alist-org/alist/v3/drivers/base"

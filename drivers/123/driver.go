@@ -263,10 +263,10 @@ func (d *Pan123) Put(ctx context.Context, dstDir model.Obj, file model.FileStrea
 		input := &s3manager.UploadInput{
 			Bucket: &resp.Data.Bucket,
 			Key:    &resp.Data.Key,
-			Body: &stream.ReaderUpdatingProgress{
+			Body: driver.NewLimitedUploadStream(ctx, &driver.ReaderUpdatingProgress{
 				Reader:         file,
 				UpdateProgress: up,
-			},
+			}),
 		}
 		_, err = uploader.UploadWithContext(ctx, input)
 		if err != nil {

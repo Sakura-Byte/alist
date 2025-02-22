@@ -57,6 +57,9 @@ func (d *AListV3) Init(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	if d.RPSLimit > 0 {
+		d.limiter = rate.NewLimiter(rate.Limit(d.RPSLimit), 1)
+	}
 	return err
 }
 

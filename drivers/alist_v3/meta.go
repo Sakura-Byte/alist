@@ -15,6 +15,7 @@ type Addition struct {
 	PassUAToUpsteam    bool    `json:"pass_ua_to_upsteam" default:"true"`
 	CustomDownloadHost string  `json:"custom_download_host"`
 	RPSLimit           float64 `json:"rps_limit" type:"float" default:"3" description:"Requests per second limit"`
+	ForwardArchiveReq  bool    `json:"forward_archive_requests" default:"true"`
 }
 
 var config = driver.Config{
